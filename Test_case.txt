@@ -1,0 +1,211 @@
+
+               Let's Play the Cricket Tournament
+               =================================
+
+How many teams are there in the tournament(In even number):4
+
+Enter the team names of group1:
+Team 1:India
+Team 2:Australia
+
+Enter the team names of group2:
+Team 1:Pakistan
+Team 2:England
+
+For Group1 details(Enter 1) / Group2 details(Enter 2)/Exit(Enter 3):3
+
+Choose your team from these 4 teams:India
+Your team is India
+
+What do you want to do:
+1:For team details(Enter 1)
+2:For Play your team's match(Enter 2)
+3:For Skip Other's team match(Enter 3)
+4:To exit(Enter 4)
+
+Enter your choice:3
+
+Randomly chose group is 2
+
+The match was between Pakistan and England
+
+For Group1 details(Enter 1) / Group2 details(Enter 2)/Exit(Enter 3):2
+
+                       GROUP 2
+                       ======
+Team No.|    Team      |      Won    |   Lost    |  Draw   |   Points  |   Matches |
+------------------------------------------------------------------------------------
+1:      |   Pakistan   |       1     |    0      |   0     |      2    |       1   |
+------------------------------------------------------------------------------------
+2:      |   England    |       0     |    1      |   0     |      0    |       1   |
+------------------------------------------------------------------------------------
+
+For Group1 details(Enter 1) / Group2 details(Enter 2)/Exit(Enter 3):3
+
+What do you want to do:
+1:For team details(Enter 1)
+2:For Play your team's match(Enter 2)
+3:For Skip Other's team match(Enter 3)
+4:To exit(Enter 4)
+
+Enter your choice:3
+
+Now only your teams matches are left
+
+What do you want to do:
+1:For team details(Enter 1)
+2:For Play your team's match(Enter 2)
+3:For Skip Other's team match(Enter 3)
+4:To exit(Enter 4)
+
+Enter your choice:2
+
+Strict Rule:You have to play atleast one over
+How many overs game do you want to play:5
+
+                          Let's Do the toss
+                          ==================
+Opponent has won the toss
+Opponent has decided to FIELD first
+
+                            First Inning Start
+                            ==================
+
+Enter event on the ball(Runs-R / Wicket- W / Wide-w / Bye-B / Leg Bye-L / Dot ball-D / No Ball-N)
+                              OVER 1:
+
+Enter event:R
+How many runs on that ball:1
+
+Enter event:D
+
+Enter event:w
+
+Enter event:R
+How many runs on that ball:3
+
+Enter event:D
+
+Enter event:W
+
+Enter event:L
+How many runs on that bye:2
+
+Over 1: |1  |  |0  |  |1w |  |3  |  |0  |  |0W |  |2LB|  
+
+
+Score:7-1                           Overs:1            Run Rate:7
+
+Do you want to autoplay(Yes-1 / No-0):1
+
+                              OVER 2:
+
+Over 2: |3  |  |4NB|  |5  |  |4  |  |7NB|  |0B |  |6  |  |1w |  |1  |  
+
+Score:38-1           Overs:2            Run Rate:19
+
+                              OVER 3:
+
+Over 3: |6  |  |0W |  |4  |  |1  |  |0B |  |1  |  
+
+Score:50-2           Overs:3            Run Rate:16
+
+                              OVER 4:
+
+Over 4: |6  |  |6NB|  |6  |  |2LB|  |4NB|  |0  |  |1LB|  |1w |  |6  |  
+
+Score:82-2           Overs:4            Run Rate:20
+
+                              OVER 5:
+
+Over 5: |3LB|  |4B |  |1  |  |6  |  |4B |  |0LB|  
+
+Score:100-2           Overs:5            Run Rate:20
+
+                             First Innings Complete
+                             ========================
+
+                            Second Inning Starts
+                            ====================
+Enter event on the ball(Runs-R / Wicket- W / Wide-w / Bye-B / Leg Bye-L / Dot ball-D / No Ball-N)
+                              OVER 1:
+
+Enter event:R
+How many runs on that ball:4
+
+Enter event:R
+How many runs on that ball:2
+
+Enter event:R
+How many runs on that ball:6
+
+Enter event:D
+
+Enter event:B
+How many runs on that bye:2
+
+Enter event:W
+
+Over 1: |4  |  |2  |  |6  |  |0  |  |2B |  |0W |  
+
+
+Score:14-1                           Overs:1            Run Rate:14
+
+Do you want to autoplay(Yes-1 / No-0):1
+
+                              OVER 2:
+
+Over 2: |5  |  |1w |  |1w |  |3LB|  |3  |  |4  |  |4  |  |0LB|  
+
+Score:35-1                           Overs:2            Run Rate:17
+
+                              OVER 3:
+
+Over 3: |4B |  |4NB|  |0  |  |6  |  |1w |  |2B |  |1  |  |6  |  
+
+Score:59-1                           Overs:3            Run Rate:19
+
+                              OVER 4:
+
+Over 4: |0  |  |4B |  |6  |  |2  |  |1w |  |3  |  |0  |  
+
+Score:75-1                           Overs:4            Run Rate:18
+
+                              OVER 5:
+
+Over 5: |3LB|  |3B |  |5NB|  |1w |  |6  |  |2NB|  |3  |  |0W |  |0  |  
+
+Score:98-2                           Overs:5            Run Rate:19
+
+                             Second Innings Complete
+                             ========================
+
+The match was between India and Australia
+
+For Group1 details(Enter 1) / Group2 details(Enter 2)/Exit(Enter 3):1
+
+                       GROUP 1
+                       ======
+Team No.|    Team      |      Won    |   Lost    |  Draw   |   Points  |   Matches |
+------------------------------------------------------------------------------------
+1:      |   India      |       1     |    0      |   0     |      2    |       1   |
+------------------------------------------------------------------------------------
+2:      |   Australia  |       0     |    1      |   0     |      0    |       1   |
+------------------------------------------------------------------------------------
+
+For Group1 details(Enter 1) / Group2 details(Enter 2)/Exit(Enter 3):2
+
+                       GROUP 2
+                       ======
+Team No.|    Team      |      Won    |   Lost    |  Draw   |   Points  |   Matches |
+------------------------------------------------------------------------------------
+1:      |   Pakistan   |       1     |    0      |   0     |      2    |       1   |
+------------------------------------------------------------------------------------
+2:      |   England    |       0     |    1      |   0     |      0    |       1   |
+------------------------------------------------------------------------------------
+
+For Group1 details(Enter 1) / Group2 details(Enter 2)/Exit(Enter 3):3
+                       TOURNAMENT ENDS
+                       ===============
+
+
