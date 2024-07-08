@@ -810,9 +810,10 @@ void Mine_team_matches(int total_teams,struct teamdetails group[],int matches_do
     int oppo_decide;
     int you_decide;
     char who_bat_first;
-    if(whos_call==0)
+    if(whos_call==1)
     {
         printf("Yours Call(Head-H / Tail-T):");
+        getchar();
         scanf("%c",&toss_call);
         int outcome=rand()%2;
         if(outcome==0 && toss_call=='H')
