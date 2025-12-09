@@ -38,15 +38,11 @@ BallOutcome simulate_one_ball(GameState *state) {
     if (r < run_chance) {
         // It's a scoring shot
         outcome.type = OUTCOME_RUNS;
-        int run_type = rand() % 100;
-        if (run_type < 40) { outcome.runs = 1; }
-        else if (run_type < 70) { outcome.runs = 2; }
-        else if (run_type < 85) { outcome.runs = 4; }
-        else { outcome.runs = 6; }
+        // The actual number of runs is now decided by the player in the GUI.
+        // We can still simulate a "potential" run value to guide where the ball goes.
+        // For now, we just signal that runs are possible.
+        outcome.runs = 1; // Signifies a hit, not the actual run count.
         
-        state->total_runs += outcome.runs;
-        striker->total_runs += outcome.runs;
-
     } else {
         // It's a chance for a wicket
         int out_chance = 50 + (bowl_skill - bat_skill) / 4;
@@ -70,12 +66,12 @@ BallOutcome simulate_one_ball(GameState *state) {
     // --- Update Game State ---
     state->balls_bowled_in_over++;
     
-    // Rotate strike if an odd number of runs were scored
-    if (outcome.runs % 2 != 0) {
-        int temp = state->striker_idx;
-        state->striker_idx = state->non_striker_idx;
-        state->non_striker_idx = temp;
-    }
+    // Strike rotation will now be handled by the GUI after runs are taken.
+    // if (outcome.runs % 2 != 0) {
+    //     int temp = state->striker_idx;
+    //     state->striker_idx = state->non_striker_idx;
+    //     state->non_striker_idx = temp;
+    // }
 
     // Check for end of over
     if (state->balls_bowled_in_over >= 6) {
@@ -85,6 +81,17 @@ BallOutcome simulate_one_ball(GameState *state) {
         int temp = state->striker_idx;
         state->striker_idx = state->non_striker_idx;
         state->non_striker_idx = temp;
+
+        // --- DYNAMIC RAIN INTERRUPTION LOGIC ---
+        // Check for rain at the end of each over.
+        if (state->rain_percentage > 0 && (rand() % 100) < (state->rain_percentage * 100)) {
+            int overs_lost = 1 + (rand() % 5); // Lose 1 to 5 overs
+            if (state->max_overs - overs_lost > state->overs_completed) {
+                state->max_overs -= overs_lost;
+                printf("\n*** RAIN INTERRUPTION! Match reduced to %d overs. ***\n", state->max_overs);
+            }
+        }
+        // --- END RAIN LOGIC ---
 
         // Select a new bowler
         int current_bowler_p_idx = -1;
@@ -255,17 +262,7 @@ int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, i
     if (format == FORMAT_T20) { oversA = oversB = 20; }
     else if (format == FORMAT_ODI) { oversA = oversB = 50; }
     else { oversA = oversB = 90; }
-
-    int reducedB = 0;
-    if (rain_possible)
-    {
-        int chance = rand() % 100;
-        if (chance < 30)
-        {
-            int red = 1 + (rand() % (oversA/5 + 1));
-            if (oversB - red > 1) { oversB -= red; reducedB = red; }
-        }
-    }
+    (void)rain_possible; // This is now handled inside simulate_innings via GameState
 
     int runsA = 0, runsB = 0;
     printf("\n--- First Innings: %s batting ---\n", batting_first->name);
@@ -275,18 +272,11 @@ int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, i
     int targetB = runsA + 1;
     int wkB = simulate_innings(fielding_first, batting_first, oversB, autoplay, &runsB, targetB);
 
-    if (reducedB > 0 && oversA > 0)
-    {
-        double factor = (double)oversB / (double)oversA;
-        int adj_target = (int)(runsA * factor) + 1;
-        if (runsB >= adj_target) snprintf(out_summary, summary_sz, "%s beat %s (DLS adjusted target %d). Score %d/%d vs %d/%d. Umpire: %s", fielding_first->name, batting_first->name, adj_target, runsB, wkB, runsA, wkA, umpire);
-        else snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", batting_first->name, fielding_first->name, runsA, wkA, runsB, wkB, umpire);
-    }
-    else
-    {
-        if (runsA == runsB) snprintf(out_summary, summary_sz, "Match Drawn: %s %d - %s %d. Umpire: %s", batting_first->name, runsA, fielding_first->name, runsB, umpire);
-        else if (runsA > runsB) snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", batting_first->name, fielding_first->name, runsA, wkA, runsB, wkB, umpire);
-        else snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", fielding_first->name, batting_first->name, runsB, wkB, runsA, wkA, umpire);
-    }
+    // Note: DLS calculation is complex. For now, we'll just compare raw scores.
+    // A proper DLS implementation would adjust the target after the rain interruption in the first innings.
+    if (runsA == runsB) snprintf(out_summary, summary_sz, "Match Drawn: %s %d - %s %d. Umpire: %s", batting_first->name, runsA, fielding_first->name, runsB, umpire);
+    else if (runsA > runsB) snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", batting_first->name, fielding_first->name, runsA, wkA, runsB, wkB, umpire);
+    else snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", fielding_first->name, batting_first->name, runsB, wkB, runsA, wkA, umpire);
+
     return 1;
 }

@@ -29,6 +29,16 @@ typedef struct {
     int runs; // Runs scored on this ball
 } BallOutcome;
 
+// Enum for different fielding presets
+typedef enum {
+    FIELD_SETUP_DEFAULT,
+    FIELD_SETUP_AGGRESSIVE,
+    FIELD_SETUP_NORMAL_1,
+    FIELD_SETUP_NORMAL_2,
+    FIELD_SETUP_DEFENSIVE,
+    FIELD_SETUP_COUNT // To know the number of setups
+} FieldingSetup;
+
 // Structure to hold the entire state of a single innings in progress
 typedef struct {
     Team *batting_team;
@@ -42,9 +52,11 @@ typedef struct {
     int striker_idx;
     int non_striker_idx;
     int bowler_idx;
+    FieldingSetup fielding_setup;
 
     int max_overs;
     int target; // 0 if first innings
+    float rain_percentage; // Probability of rain per over (0.0 to 1.0)
 
 } GameState;
 
