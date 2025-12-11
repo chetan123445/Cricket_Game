@@ -4,6 +4,21 @@
 #include "common.h"
 #include "teams.h"
 
+
+
+#include "field_setups.h" // Required for get_field_setup declaration
+
+// Explicitly define NUM_FIELDERS here for GameState struct definition,
+// as it seems to be lost otherwise in this context.
+// Ideally, common.h should suffice, but this acts as a workaround.
+#define NUM_FIELDERS 9
+
+// Enum for different gameplay modes
+typedef enum {
+    GAMEPLAY_MODE_PLAYING,
+    GAMEPLAY_MODE_CUSTOM_FIELDING
+} GameplayMode;
+
 // Structure to represent a single ball in an over
 typedef struct Ball {
     int runs;
@@ -27,17 +42,16 @@ typedef enum {
 typedef struct {
     BallOutcomeType type;
     int runs; // Runs scored on this ball
+    float shot_x;
+    float shot_y;
+    int fielder_index;
 } BallOutcome;
 
-// Enum for different fielding presets
 typedef enum {
-    FIELD_SETUP_DEFAULT,
-    FIELD_SETUP_AGGRESSIVE,
-    FIELD_SETUP_NORMAL_1,
-    FIELD_SETUP_NORMAL_2,
-    FIELD_SETUP_DEFENSIVE,
-    FIELD_SETUP_COUNT // To know the number of setups
-} FieldingSetup;
+    POWERPLAY_1,
+    POWERPLAY_2,
+    POWERPLAY_3
+} Powerplay;
 
 // Structure to hold the entire state of a single innings in progress
 typedef struct {
@@ -49,10 +63,15 @@ typedef struct {
     int overs_completed;
     int balls_bowled_in_over;
 
+    Powerplay current_powerplay;
+
     int striker_idx;
     int non_striker_idx;
     int bowler_idx;
     FieldingSetup fielding_setup;
+
+    GameplayMode gameplay_mode; // Current gameplay mode
+    Vector2 custom_field_setup[NUM_FIELDERS]; // Storage for custom fielder positions
 
     int max_overs;
     int target; // 0 if first innings

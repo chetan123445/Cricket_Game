@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 #include "match.h"
 #include "ui.h"
 #include "teams.h"
@@ -140,6 +146,14 @@ static int simulate_innings(Team *batting_team, Team *bowling_team, int max_over
 
     // --- Main Innings Loop ---
     while (state.overs_completed < state.max_overs && state.wickets < 10) {
+        if (state.overs_completed < 10) {
+            state.current_powerplay = POWERPLAY_1;
+        } else if (state.overs_completed < 40) {
+            state.current_powerplay = POWERPLAY_2;
+        } else {
+            state.current_powerplay = POWERPLAY_3;
+        }
+
         if (target > 0 && state.total_runs > target) {
              break; // Target chased
         }
@@ -216,46 +230,12 @@ static int simulate_innings(Team *batting_team, Team *bowling_team, int max_over
     return state.wickets;
 }
 
+#include "toss.h"
+
 int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, int rain_possible, const char *umpire, char *out_summary, size_t summary_sz)
 {
-    printf("\n--- Let's Play! ---\n");
-    printf("%s vs %s\n", teamA->name, teamB->name);
-
-    // Toss
-    printf("Time for the toss. Heads (H) or Tails (T)? ");
-    char toss_call;
-    scanf(" %c", &toss_call);
-    clean_stdin();
-    int toss_outcome = rand() % 2; // 0 for heads, 1 for tails
-    int user_won_toss = (toss_outcome == 0 && (toss_call == 'H' || toss_call == 'h')) || (toss_outcome == 1 && (toss_call == 'T' || toss_call == 't'));
-    
-    Team *batting_first, *fielding_first;
-
-    if (user_won_toss) {
-        printf("You won the toss! Bat (1) or Field (2)? ");
-        int choice;
-        if (scanf("%d", &choice) != 1) choice = 1;
-        clean_stdin();
-        if (choice == 1) {
-            batting_first = teamA;
-            fielding_first = teamB;
-        } else {
-            batting_first = teamB;
-            fielding_first = teamA;
-        }
-    } else {
-        printf("You lost the toss. The opponent will choose.\n");
-        int opp_choice = rand() % 2;
-        if (opp_choice == 0) {
-            printf("Opponent chose to bat.\n");
-            batting_first = teamB;
-            fielding_first = teamA;
-        } else {
-            printf("Opponent chose to field.\n");
-            batting_first = teamA;
-            fielding_first = teamB;
-        }
-    }
+    Team *batting_first = teamA;
+    Team *fielding_first = teamB;
 
 
     int oversA = 0, oversB = 0;
@@ -268,9 +248,22 @@ int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, i
     printf("\n--- First Innings: %s batting ---\n", batting_first->name);
     int wkA = simulate_innings(batting_first, fielding_first, oversA, autoplay, &runsA, 0);
     
+    printf("\n\n--- Innings Break ---\n");
+    for (int i = 10; i > 0; i--) {
+        printf("\rSecond innings starts in %2d seconds...", i);
+        fflush(stdout);
+        #if defined(_WIN32)
+        Sleep(1000);
+        #else
+        sleep(1);
+        #endif
+    }
+    printf("\n\n");
+
     printf("\n--- Second Innings: %s batting ---\n", fielding_first->name);
     int targetB = runsA + 1;
     int wkB = simulate_innings(fielding_first, batting_first, oversB, autoplay, &runsB, targetB);
+
 
     // Note: DLS calculation is complex. For now, we'll just compare raw scores.
     // A proper DLS implementation would adjust the target after the rain interruption in the first innings.

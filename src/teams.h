@@ -59,6 +59,8 @@ typedef struct {
     char name[MAX_TEAM_NAME_LEN];
     Player players[MAX_PLAYERS];
     int num_players;
+    int captain_idx;
+    int vice_captain_idx;
     bool is_deleted;
     bool is_hidden;
 } Team;

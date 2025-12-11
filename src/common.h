@@ -12,6 +12,18 @@ typedef enum {
     PLAYER_TYPE_WICKETKEEPER
 } PlayerType;
 
+// Enum for different fielding presets
+typedef enum {
+    PP_AGGRESSIVE,
+    PP_DEFENSIVE,
+    MO_NORMAL,
+    MO_DEFENSIVE,
+    DO_DEFENSIVE,
+    FIELD_SETUP_COUNT // To know the number of setups
+} FieldingSetup;
+
+#define NUM_FIELDERS 9 // Number of fielders excluding bowler and wicket-keeper
+
 // Enum for match formats
 typedef enum {
     FORMAT_T20,

@@ -119,8 +119,24 @@ Team* load_teams(int *num_teams) {
         } else {
             teams[i].is_hidden = 0;
         }
+
+        token = strtok(NULL, ",");
+        if (token != NULL) {
+            teams[i].captain_idx = atoi(token);
+        } else {
+            teams[i].captain_idx = -1;
+        }
+
+        token = strtok(NULL, ",");
+        if (token != NULL) {
+            teams[i].vice_captain_idx = atoi(token);
+        } else {
+            teams[i].vice_captain_idx = -1;
+        }
         
         teams[i].num_players = 0;
+        teams[i].captain_idx = -1;
+        teams[i].vice_captain_idx = -1;
         i++;
     }
     fclose(f);
@@ -185,7 +201,7 @@ void save_teams(const Team *teams, int num_teams) {
     }
 
     for (int i = 0; i < num_teams; i++) {
-        fprintf(f, "%s,%d,%d\n", teams[i].name, teams[i].is_deleted, teams[i].is_hidden);
+        fprintf(f, "%s,%d,%d,%d,%d\n", teams[i].name, teams[i].is_deleted, teams[i].is_hidden, teams[i].captain_idx, teams[i].vice_captain_idx);
         for (int j = 0; j < teams[i].num_players; j++) {
             const Player *p = &teams[i].players[j];
             // New comprehensive fprintf for all player fields
@@ -216,6 +232,8 @@ static void add_team_interactive(Team **teams, int *num_teams)
     strncpy(new_team->name, tname, MAX_TEAM_NAME_LEN - 1);
     new_team->name[MAX_TEAM_NAME_LEN - 1] = '\0';
     new_team->num_players = 0;
+    new_team->captain_idx = -1;
+    new_team->vice_captain_idx = -1;
     new_team->is_hidden = false;
 
     printf("Team '%s' added. Now add players (up to 22).\n", tname);

@@ -8,7 +8,10 @@
 #include <string.h>
 #include <time.h> // For date and time
 #include <math.h> // For cosf and sinf
-#include "raymath.h" // For Lerp, Vector2Lerp, etc.
+#include "raymath.h"
+#include "field_setups.h"
+
+#define SILVER (Color){ 192, 192, 192, 255 }
 
 // Define a simple structure to hold text box state
 typedef struct {
@@ -63,21 +66,9 @@ static void HandleTextBox(TextBox *box);
 
 // Helpers for gameplay screen
 static void DrawPlayerFigure(Vector2 position, Color color, bool is_striker, const char* team_name, bool is_swinging);
-static void DrawFielders(GameState *gameState, Vector2 fieldCenter, float fieldRadius);
+static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState, Vector2 fieldCenter, float fieldRadius, int dragging_fielder_idx);
 
-// Define fielding setups at file scope to be accessible by multiple functions
-static const Vector2 setups[FIELD_SETUP_COUNT][9] = {
-    // FIELD_SETUP_DEFAULT (Balanced)
-    { {0.0, -0.8}, {-0.7, -0.5}, {0.7, -0.5}, {-0.8, 0.2}, {0.8, 0.2}, {-0.5, 0.7}, {0.5, 0.7}, {-0.9, 0.8}, {0.9, 0.8} },
-    // FIELD_SETUP_AGGRESSIVE (9 in the circle)
-    { {0.0, -0.6}, {-0.5, -0.4}, {0.5, -0.4}, {-0.6, 0.0}, {0.6, 0.0}, {-0.4, 0.4}, {0.4, 0.4}, {-0.2, 0.2}, {0.2, 0.2} },
-    // FIELD_SETUP_NORMAL_1 (Off-side heavy)
-    { {-0.7, -0.6}, {-0.8, -0.2}, {-0.7, 0.2}, {-0.8, 0.6}, {-0.5, -0.2}, {-0.5, 0.2}, {-0.3, 0.0}, {0.7, -0.5}, {0.7, 0.5} },
-    // FIELD_SETUP_NORMAL_2 (Leg-side heavy)
-    { {0.7, -0.6}, {0.8, -0.2}, {0.7, 0.2}, {0.8, 0.6}, {0.5, -0.2}, {0.5, 0.2}, {0.3, 0.0}, {-0.7, -0.5}, {-0.7, 0.5} },
-    // FIELD_SETUP_DEFENSIVE (5 outside circle)
-    { {-0.9, -0.9}, {0.9, -0.9}, {0.0, -0.95}, {-0.9, 0.9}, {0.9, 0.9}, {-0.4, -0.3}, {0.4, -0.3}, {-0.4, 0.3}, {0.4, 0.3} }
-};
+
 
 int main(void)
 {
@@ -97,7 +88,8 @@ int main(void)
     gameState.batting_team = &teamA;
     gameState.bowling_team = &teamB;
     gameState.max_overs = 50;
-    gameState.fielding_setup = FIELD_SETUP_DEFAULT; // Initialize with default fielding
+    gameState.fielding_setup = PP_AGGRESSIVE; // Initialize with default fielding
+    gameState.gameplay_mode = GAMEPLAY_MODE_PLAYING; // Initialize gameplay mode
 
     // GUI State Initialization
     GuiState guiState = { 0 };
@@ -405,42 +397,61 @@ static void DrawPlayerFigure(Vector2 position, Color color, bool is_striker, con
     }
 }
 
-static void DrawFielders(GameState *gameState, Vector2 fieldCenter, float fieldRadius) {
-    // Pre-defined fielder positions (x, y) as percentages of field width/height
-
-    const Vector2 *current_setup = setups[gameState->fielding_setup];
-    int fielder_count = 0;
+static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState, Vector2 fieldCenter, float fieldRadius, int dragging_fielder_idx) {
+    float normalizedThirtyYardRadius = 0.45f; // Normalized radius for checks
 
     // Find the wicket-keeper to exclude them from general fielding positions
-    int keeper_idx = -1;
+    int keeper_player_list_idx = -1; // Index within gameState->bowling_team->players
     for (int i = 0; i < gameState->bowling_team->num_players; i++) {
         if (gameState->bowling_team->players[i].is_wicketkeeper) {
-            keeper_idx = i;
+            keeper_player_list_idx = i;
             break;
         }
     }
-    // If no dedicated keeper, the last player is assumed to be the keeper
-    if (keeper_idx == -1 && gameState->bowling_team->num_players > 0) {
-        keeper_idx = gameState->bowling_team->num_players - 1;
+    // If no dedicated keeper, the last player is assumed to be the keeper (fallback)
+    if (keeper_player_list_idx == -1 && gameState->bowling_team->num_players > 0) {
+        keeper_player_list_idx = gameState->bowling_team->num_players - 1;
     }
 
-    // Draw the wicket-keeper behind the stumps
+    // Draw the wicket-keeper behind the stumps (fixed position)
+    // This assumes the keeper is NOT one of the NUM_FIELDERS in fielder_positions
     Vector2 keeperPos = { fieldCenter.x + 220, fieldCenter.y };
-    DrawPlayerFigure(keeperPos, RED, false, gameState->bowling_team->name, false);
 
-    // Draw the other 9 fielders from the setup
-    for (int i = 0; i < 9; i++) {
-        if (i != gameState->bowler_idx && i != keeper_idx && fielder_count < 9) {
-            // Normalize the direction vector to ensure it's on the unit circle, then scale it
-            // to place it safely inside the field radius.
-            Vector2 pos = Vector2Normalize(current_setup[fielder_count]);
-            Vector2 fielderPos = {
-                fieldCenter.x + pos.x * (fieldRadius - 15), // Place 15 units inside the green field
-                fieldCenter.y + pos.y * (fieldRadius - 15)
-             };
-            DrawPlayerFigure(fielderPos, RED, false, NULL, false);
-            fielder_count++; 
+
+    // Determine powerplay rules for fielder coloring
+    int max_outside = 0;
+    if (gameState->current_powerplay == POWERPLAY_1) max_outside = 2;
+    else if (gameState->current_powerplay == POWERPLAY_2) max_outside = 4;
+    else if (gameState->current_powerplay == POWERPLAY_3) max_outside = 5;
+
+    int outside_count_current_view = 0;
+    for (int i = 0; i < NUM_FIELDERS; i++) {
+        // Only count fielders (excluding bowler and keeper if they were part of the 9)
+        // For now, assuming fielder_positions contains only the 9 fielders.
+        Vector2 pos = fielder_positions[i];
+        if (Vector2Length(pos) > normalizedThirtyYardRadius) {
+            outside_count_current_view++;
         }
+    }
+
+    // Draw the other fielders from the provided positions
+    for (int i = 0; i < NUM_FIELDERS; i++) {
+        Vector2 pos_normalized = fielder_positions[i];
+        Vector2 fielderScreenPos = {
+            fieldCenter.x + pos_normalized.x * (fieldRadius - 15), // Place 15 units inside the green field
+            fieldCenter.y + pos_normalized.y * (fieldRadius - 15)
+        };
+        
+        Color fielderColor = RED; // Default color
+        if (gameState->gameplay_mode == GAMEPLAY_MODE_CUSTOM_FIELDING && i == dragging_fielder_idx) {
+            fielderColor = BLUE; // Highlight dragged fielder
+        } else if (Vector2Length(pos_normalized) > normalizedThirtyYardRadius) { // If fielder is outside 30-yard circle
+            if (outside_count_current_view > max_outside) {
+                fielderColor = YELLOW; // Highlight if too many outside
+            }
+        }
+
+        DrawPlayerFigure(fielderScreenPos, fielderColor, false, NULL, false);
     }
 }
 
@@ -473,14 +484,48 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     }
 
     // --- Fielding Setup UI ---
-    const char* field_setup_names[] = {"Default", "Aggressive", "Normal 1", "Normal 2", "Defensive"};
+    const char* field_setup_names[] = {"PP_Aggressive", "PP_Defensive", "MO_Normal", "MO_Defensive", "DO_Defensive"};
     Rectangle fieldSetupButton = { GetScreenWidth() - 200, 20, 180, 40 };
-    DrawRectangleRec(fieldSetupButton, DARKBLUE);
-    char fieldButtonText[64];
-    sprintf(fieldButtonText, "Field: %s", field_setup_names[gameState->fielding_setup]);
-    DrawText(fieldButtonText, fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, WHITE);
-    if (CheckCollisionPointRec(GetMousePosition(), fieldSetupButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        gameState->fielding_setup = (FieldingSetup)((gameState->fielding_setup + 1) % FIELD_SETUP_COUNT);
+    Rectangle editFieldButton = { GetScreenWidth() - 200, 70, 180, 40 };
+
+    if (gameState->gameplay_mode == GAMEPLAY_MODE_PLAYING) {
+        DrawRectangleRec(fieldSetupButton, DARKBLUE);
+        char fieldButtonText[64];
+        sprintf(fieldButtonText, "Field: %s", field_setup_names[gameState->fielding_setup]);
+        DrawText(fieldButtonText, fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), fieldSetupButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            if (gameState->current_powerplay == POWERPLAY_1) {
+                if (gameState->fielding_setup == PP_AGGRESSIVE) {
+                    gameState->fielding_setup = PP_DEFENSIVE;
+                } else {
+                    gameState->fielding_setup = PP_AGGRESSIVE;
+                }
+            } else {
+                gameState->fielding_setup = (FieldingSetup)((gameState->fielding_setup + 1) % FIELD_SETUP_COUNT);
+            }
+        }
+
+        DrawRectangleRec(editFieldButton, GREEN);
+        DrawText("Edit Field", editFieldButton.x + 10, editFieldButton.y + 10, 20, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), editFieldButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            gameState->gameplay_mode = GAMEPLAY_MODE_CUSTOM_FIELDING;
+            // Copy current setup to custom setup
+            const Vector2 *current_base_setup = setups[gameState->fielding_setup];
+            for (int i = 0; i < NUM_FIELDERS; i++) {
+                gameState->custom_field_setup[i] = current_base_setup[i];
+            }
+        }
+    } else { // GAMEPLAY_MODE_CUSTOM_FIELDING
+        DrawRectangleRec(fieldSetupButton, GRAY); // Disabled when editing
+        DrawText("Field: Custom", fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, LIGHTGRAY);
+
+        DrawRectangleRec(editFieldButton, RED);
+        DrawText("Apply Field", editFieldButton.x + 10, editFieldButton.y + 10, 20, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), editFieldButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            gameState->gameplay_mode = GAMEPLAY_MODE_PLAYING;
+            // The custom setup is now the active one for the remainder of gameplay
+            // No need to copy back to fielding_setup, DrawFielders will use custom_field_setup
+        }
     }
 
     // --- Pre-calculate positions ---
@@ -504,7 +549,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     static float runAnimTimer = 0.0f;
     static Vector2 fielderRunPos;
     static int nearestFielderIndex = -1;
-    static Vector2 keeperPos; // This is now calculated inside the function
+    static int dragging_fielder_idx = -1; // Index of the fielder being dragged (-1 if none)
+    static Vector2 drag_offset; // Offset from fielder's center to mouse position when dragging started
 
     bool isGameOver = (gameState->overs_completed >= gameState->max_overs || gameState->wickets >= 10);
 
@@ -577,17 +623,32 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     DrawCircleV(fieldCenter, fieldRadius, DARKGREEN);
     DrawCircleLinesV(fieldCenter, boundaryRadius, WHITE); // Boundary Rope
 
+    // Draw 30-yard circle
+    float thirtyYardRadius = fieldRadius * 0.45f;
+    DrawCircleLinesV(fieldCenter, thirtyYardRadius, Fade(WHITE, 0.3f));
+
     // Draw the pitch
     Rectangle pitch = { fieldCenter.x - 200, fieldCenter.y - 25, 400, 50 };
     DrawRectangleRec(pitch, DARKBROWN);
     DrawRectangle(pitch.x + 20, pitch.y, 5, pitch.height, LIGHTGRAY); // Crease
     DrawRectangle(pitch.x + pitch.width - 25, pitch.y, 5, pitch.height, LIGHTGRAY); // Crease
 
+    // Display Powerplay info
+    const char* pp_text = "";
+    int max_outside = 0;
+    switch(gameState->current_powerplay) {
+        case POWERPLAY_1: pp_text = "PP1 (1-10)"; max_outside = 2; break;
+        case POWERPLAY_2: pp_text = "PP2 (11-40)"; max_outside = 4; break;
+        case POWERPLAY_3: pp_text = "PP3 (41-50)"; max_outside = 5; break;
+    }
+    DrawText(TextFormat("Powerplay: %s (%d outside max)", pp_text, max_outside), 20, 100, 20, GRAY);
+
+
     // --- Player Positions ---
     Vector2 strikerEnd = { fieldCenter.x + 180, fieldCenter.y }; // Use a consistent name
     Vector2 nonStrikerEnd = { fieldCenter.x - 180, fieldCenter.y }; // Use a consistent name
     Vector2 bowlerDefaultPos = { fieldCenter.x - 250, fieldCenter.y };
-    keeperPos = (Vector2){ fieldCenter.x + 220, fieldCenter.y };
+
     
     // --- Animation State Machine ---
     switch (currentPhase) {
@@ -609,56 +670,92 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
             }
             break;
         case PHASE_BATSMAN_SWING:
-            animTimer += GetFrameTime();
-            if (animTimer >= 0.2f) { // 0.2-second swing
-                currentBallOutcome = simulate_one_ball(gameState); // Simulate the outcome now
-                if (currentBallOutcome.type == OUTCOME_WICKET) {
-                    currentPhase = PHASE_IDLE; // Back to idle if out
-                } else {
-                    currentPhase = PHASE_BALL_IN_FIELD;
-                    // Calculate random position for the ball to land
-                    float angle = (float)(GetRandomValue(-135, 135)) * DEG2RAD;
-                    float dist = 50 + (rand() % (int)(boundaryRadius + 40)); // Can go outside boundary
-                    ballTargetPos = (Vector2){ fieldCenter.x + cosf(angle) * dist, fieldCenter.y + sinf(angle) * dist };
-                    ballPos = strikerEnd;
-                    runsThisBall = 0;
+    animTimer += GetFrameTime();
+    if (animTimer >= 0.2f) { // 0.2-second swing
+        // --- NEW SKILL AND FIELDING BASED SIMULATION ---
+        Player *striker = &gameState->batting_team->players[gameState->striker_idx];
+        Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
 
-                    // Check for automatic 4 or 6
-                    if (Vector2Distance(fieldCenter, ballTargetPos) > boundaryRadius) {
-                        if (dist > boundaryRadius + 20) { // Direct hit
-                            runsThisBall = 6;
-                            gameState->total_runs += 6;
-                        } else { // Bounces to boundary
-                            runsThisBall = 4;
-                            gameState->total_runs += 4;
-                        }
-                        celebration_end_time = GetTime() + 2.0;
-                        currentPhase = PHASE_BOUNDARY_ANIMATION;
-                        animTimer = 0.0f; // Reset timer for the animation
-                    } else {
-                        // Find nearest fielder to run towards the ball
-                        float nearestDist = 10000.0f;
-                        nearestFielderIndex = -1; // Reset nearest fielder index
-                        const Vector2 *setup = setups[gameState->fielding_setup];
-                        for (int i = 0; i < 9; i++) { // Iterate through the 9 fielder positions
-                            Vector2 pos = Vector2Normalize(setup[i]);
-                            Vector2 fielderBasePos = { 
-                                fieldCenter.x + pos.x * (fieldRadius - 15),
-                                fieldCenter.y + pos.y * (fieldRadius - 15)
-                            };
-                            float d = Vector2Distance(fielderBasePos, ballTargetPos);
-                            if (d < nearestDist) {
-                                nearestDist = d;
-                                fielderRunPos = fielderBasePos;
-                                nearestFielderIndex = i; // Store the index of the running fielder
-                            }
-                        }
-                        showRunButton = true;
+        // 1. Skill difference & Timing
+        int skill_diff = striker->batting_skill - bowler->bowling_skill;
+        int timing = (rand() % 41) - 20; // -20 (very poor) to +20 (perfect)
+        int final_shot_quality = skill_diff + timing;
+
+        // 2. Wicket chance on poor timing/skill
+        if (final_shot_quality < -25) {
+            currentBallOutcome.type = OUTCOME_WICKET;
+            gameState->wickets++;
+            bowler->total_wickets++;
+            // Move to next batsman
+            gameState->striker_idx = (gameState->striker_idx > gameState->non_striker_idx) ? gameState->striker_idx + 1 : gameState->non_striker_idx + 1;
+            currentPhase = PHASE_IDLE; // Back to idle if out
+        } else {
+            // 3. Determine shot placement
+            float angle = (float)(GetRandomValue(-135, 135)) * DEG2RAD;
+            // Distance is based on shot quality
+            // Adjusted dist_multiplier for realism and reduced 6s frequency
+            float dist_multiplier = 0.3f + (float)(final_shot_quality + 30) / 80.0f; // Range roughly 0.36 to 0.925
+            float dist = (fieldRadius * 0.8f) * dist_multiplier;
+            dist += (rand() % (int)(fieldRadius * 0.1f)); // Reduced random boost
+
+            ballTargetPos = (Vector2){ fieldCenter.x + cosf(angle) * dist, fieldCenter.y + sinf(angle) * dist };
+            ballPos = strikerEnd;
+            runsThisBall = 0;
+            currentPhase = PHASE_BALL_IN_FIELD; // Assume ball is in field initially
+
+            // 4. Check for Boundary
+            if (Vector2Distance(fieldCenter, ballTargetPos) > boundaryRadius) {
+                if (dist > boundaryRadius + 30) { // Made it harder for a direct hit for 6
+                    runsThisBall = 6;
+                } else { // Bounces to boundary for 4
+                    runsThisBall = 4;
+                }
+                gameState->total_runs += runsThisBall;
+                striker->total_runs += runsThisBall;
+                celebration_end_time = GetTime() + 2.0;
+                currentPhase = PHASE_BOUNDARY_ANIMATION;
+                animTimer = 0.0f;
+            } else {
+                // 5. Find nearest fielder if not a boundary
+                const Vector2 *setup = get_field_setup(gameState->fielding_setup, striker);
+                float nearestDist = 10000.0f;
+                nearestFielderIndex = -1;
+                
+                for (int i = 0; i < NUM_FIELDERS; i++) {
+                    Vector2 pos_normalized = setup[i];
+                    Vector2 fielderBasePos = { 
+                        fieldCenter.x + pos_normalized.x * (fieldRadius - 15),
+                        fieldCenter.y + pos_normalized.y * (fieldRadius - 15)
+                    };
+                    float d = Vector2Distance(fielderBasePos, ballTargetPos);
+                    if (d < nearestDist) {
+                        nearestDist = d;
+                        fielderRunPos = fielderBasePos;
+                        nearestFielderIndex = i;
                     }
                 }
-                animTimer = 0.0f;
+
+                // 6. Determine outcome based on fielder distance
+                float fielding_skill = gameState->bowling_team->players[nearestFielderIndex].fielding_skill;
+                float effective_distance = nearestDist - (fielding_skill / 10.0f); // Good fielders cover more ground
+
+                if (effective_distance < 15.0f && final_shot_quality < 0) { // CATCH
+                    currentBallOutcome.type = OUTCOME_WICKET;
+                    gameState->wickets++;
+                    bowler->total_wickets++;
+                    gameState->striker_idx = (gameState->striker_idx > gameState->non_striker_idx) ? gameState->striker_idx + 1 : gameState->non_striker_idx + 1;
+                    currentPhase = PHASE_IDLE;
+                } else if (effective_distance < 35.0f) { // Stopped well, maybe a single
+                    showRunButton = true;
+                    // The ball will be stopped quickly, limiting runs. This is handled by the fielder reaching the ball.
+                } else { // In a gap
+                    showRunButton = true;
+                }
             }
-            break;
+        }
+        animTimer = 0.0f;
+    }
+    break;
         case PHASE_BALL_IN_FIELD:
             // Animate ball and fielder moving to the target position
             {
@@ -746,18 +843,88 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
 
     // --- Draw Fielders (excluding the one who is running) ---
-    const Vector2 *current_setup = setups[gameState->fielding_setup];
-    int keeper_idx = -1; // Find keeper to exclude them
-    for (int i = 0; i < gameState->bowling_team->num_players; i++) if (gameState->bowling_team->players[i].is_wicketkeeper) { keeper_idx = i; break; }
-    if (keeper_idx == -1 && gameState->bowling_team->num_players > 0) keeper_idx = gameState->bowling_team->num_players - 1;
+    const Vector2 *drawing_setup_positions = NULL;
+    if (gameState->gameplay_mode == GAMEPLAY_MODE_CUSTOM_FIELDING) {
+        drawing_setup_positions = gameState->custom_field_setup;
+    } else {
+        // In playing mode, get the standard setup
+        drawing_setup_positions = get_field_setup(gameState->fielding_setup, striker);
+    }
+    
+    // Pass the drawing_setup to the DrawFielders helper.
+    // Also pass dragging_fielder_idx
+    DrawFielders(drawing_setup_positions, gameState, fieldCenter, fieldRadius, dragging_fielder_idx);
 
-    DrawPlayerFigure(keeperPos, RED, false, gameState->bowling_team->name, false);
+    // --- Fielder Dragging Logic (only in custom fielding mode) ---
+    if (gameState->gameplay_mode == GAMEPLAY_MODE_CUSTOM_FIELDING) {
+        Vector2 mouse_pos = GetMousePosition();
+        float player_size_for_click = 20.0f; // Approx size for click detection
+        const float fielder_collision_min_dist = 20.0f; // Minimum distance between fielders in screen pixels
 
-    for (int i = 0; i < 9; i++) {
-        if (i != nearestFielderIndex) { // Don't draw the fielder who is currently running
-            Vector2 pos = Vector2Normalize(current_setup[i]);
-            Vector2 fielderPos = { fieldCenter.x + pos.x * (fieldRadius - 15), fieldCenter.y + pos.y * (fieldRadius - 15) };
-            DrawPlayerFigure(fielderPos, RED, false, NULL, false);
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            for (int i = 0; i < NUM_FIELDERS; i++) {
+                // Convert normalized position to screen position for click detection
+                Vector2 pos_normalized = drawing_setup_positions[i];
+                Vector2 fielderScreenPos = {
+                    fieldCenter.x + pos_normalized.x * (fieldRadius - 15),
+                    fieldCenter.y + pos_normalized.y * (fieldRadius - 15)
+                };
+
+                if (CheckCollisionPointCircle(mouse_pos, fielderScreenPos, player_size_for_click)) {
+                    dragging_fielder_idx = i;
+                    drag_offset = Vector2Subtract(mouse_pos, fielderScreenPos);
+                    break;
+                }
+            }
+        }
+
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            dragging_fielder_idx = -1;
+        }
+
+        if (dragging_fielder_idx != -1 && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+            Vector2 new_screen_pos = Vector2Subtract(mouse_pos, drag_offset);
+            
+            // Convert screen position back to normalized field coordinates
+            // This is inverse of: fielderScreenPos.x = fieldCenter.x + pos_normalized.x * (fieldRadius - 15)
+            // pos_normalized.x = (new_screen_pos.x - fieldCenter.x) / (fieldRadius - 15)
+            Vector2 new_normalized_pos;
+            new_normalized_pos.x = (new_screen_pos.x - fieldCenter.x) / (fieldRadius - 15);
+            new_normalized_pos.y = (new_screen_pos.y - fieldCenter.y) / (fieldRadius - 15);
+
+            // Clamp normalized position to stay within field boundaries (approx -1.0 to 1.0)
+            float current_dist_from_center = Vector2Length(new_normalized_pos);
+            if (current_dist_from_center > 1.0f) {
+                new_normalized_pos = Vector2Scale(new_normalized_pos, 1.0f / current_dist_from_center);
+            }
+            // Ensure fielder stays outside a minimum inner circle (e.g., pitch area)
+            float min_fielder_distance = 0.2f; // Normalized minimum distance from field center
+            if (current_dist_from_center < min_fielder_distance) {
+                 new_normalized_pos = Vector2Scale(Vector2Normalize(new_normalized_pos), min_fielder_distance);
+            }
+
+
+            // --- Collision Detection ---
+            bool collision = false;
+            for (int i = 0; i < NUM_FIELDERS; i++) {
+                if (i == dragging_fielder_idx) continue;
+
+                // Calculate screen position for the other fielder
+                Vector2 other_fielder_normalized_pos = drawing_setup_positions[i];
+                Vector2 otherFielderScreenPos = {
+                    fieldCenter.x + other_fielder_normalized_pos.x * (fieldRadius - 15),
+                    fieldCenter.y + other_fielder_normalized_pos.y * (fieldRadius - 15)
+                };
+
+                if (Vector2Distance(new_screen_pos, otherFielderScreenPos) < fielder_collision_min_dist) {
+                    collision = true;
+                    break;
+                }
+            }
+
+            if (!collision) {
+                gameState->custom_field_setup[dragging_fielder_idx] = new_normalized_pos;
+            }
         }
     }
 
@@ -1973,8 +2140,29 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
             sprintf(title, "%s vs %s", currentMatch->teamA->name, currentMatch->teamB->name);
             DrawTextBold(title, GetScreenWidth() / 2 - MeasureText(title, 40) / 2, 20, 40, DARKGRAY);
             DrawText(date_str, GetScreenWidth() / 2 - MeasureText(date_str, 20) / 2, 70, 20, GRAY);
+            
+            // --- Distinguish between User and AI matches ---
+            Team* user_team = &wc_teams[user_team_idx];
+            bool is_user_match = (currentMatch->teamA == user_team) || (currentMatch->teamB == user_team);
 
-            // --- Toss Simulation ---
+            if (!is_user_match) {
+                DrawText("Simulating AI vs AI match...", GetScreenWidth()/2 - MeasureText("Simulating AI vs AI match...", 30)/2, GetScreenHeight()/2, 30, DARKGRAY);
+                
+                // Use the toss_end_time as a delay timer before skipping to the next match
+                if (toss_end_time == 0) toss_end_time = GetTime() + 1.5; // Initial delay
+                if (GetTime() > toss_end_time) {
+                    current_match_idx++;
+                    if (current_match_idx >= num_wc_matches) {
+                        currentStep = WC_STEP_FIXTURES; // Loop back to fixtures for now
+                    }
+                    // Reset for the next match (which might also be AI)
+                    toss_end_time = GetTime() + 1.5; 
+                }
+                break; // Skip the rest of the pre-match logic for AI matches
+            }
+
+
+            // --- Toss Simulation (For User Matches Only) ---
             if (toss_in_progress) {
                 toss_rotation += toss_velocity * GetFrameTime();
                 toss_velocity -= 3000.0f * GetFrameTime(); // Decelerate
@@ -2016,6 +2204,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
             } else { // Show toss result and other options
                 char toss_result_text[128];
                 bool user_won_toss = (toss_call == toss_result);
+                static int toss_choice = -1; // 0 for bat, 1 for field
+
                 sprintf(toss_result_text, "It's %s. You %s the toss!", toss_result == 0 ? "Heads" : "Tails", user_won_toss ? "WON" : "LOST");
                 DrawText(toss_result_text, GetScreenWidth() / 2 - MeasureText(toss_result_text, 30) / 2, 120, 30, user_won_toss ? DARKGREEN : MAROON);
 
@@ -2024,36 +2214,38 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                 DrawCircle(GetScreenWidth() / 2, GetScreenHeight() / 2, 100, GOLD);
                 DrawText(coin_face, GetScreenWidth() / 2 - MeasureText(coin_face, 100)/2, GetScreenHeight() / 2 - 50, 100, BLACK);
 
-                // If the 5-second hold is still active, just show the countdown.
-                if (GetTime() <= toss_end_time) {
-                    // Display a waiting message during the 5-second hold
-                    char wait_text[32];
-                    sprintf(wait_text, "Continuing in %.0f...", (toss_end_time - GetTime()) + 1);
-                    DrawText(wait_text, GetScreenWidth() / 2 - MeasureText(wait_text, 20) / 2, GetScreenHeight() - 100, 20, GRAY);
-                } else {
-                    // After the hold, show the options and the proceed button.
-                    // --- Rain Percentage ---
-                    DrawText("Rain Percentage:", 100, 200, 20, DARKGRAY);
-                    const char* rain_options[] = {"0%", "20%", "40%", "60%", "80%"};
-                    for(int i=0; i<5; i++) {
-                        Rectangle rainBtn = { 100 + i * 110, 230, 100, 40 };
-                        bool isSelected = (rain_percentage == i * 0.2f);
-                        DrawRectangleRec(rainBtn, isSelected ? SKYBLUE : LIGHTGRAY);
-                        DrawText(rain_options[i], rainBtn.x + 30, rainBtn.y + 10, 20, BLACK);
-                        if(CheckCollisionPointRec(GetMousePosition(), rainBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) rain_percentage = i * 0.2f;
-                    }
+                if (user_won_toss) {
+                    if (toss_choice == -1) {
+                        DrawText("What will you do?", GetScreenWidth() / 2 - MeasureText("What will you do?", 20) / 2, 300, 20, BLACK);
+                        Rectangle batBtn = { GetScreenWidth() / 2 - 155, 330, 150, 50 };
+                        Rectangle fieldBtn = { GetScreenWidth() / 2 + 5, 330, 150, 50 };
+                        DrawRectangleRec(batBtn, LIGHTGRAY); DrawText("BAT", batBtn.x + 55, batBtn.y + 15, 20, BLACK);
+                        DrawRectangleRec(fieldBtn, LIGHTGRAY); DrawText("FIELD", fieldBtn.x + 50, fieldBtn.y + 15, 20, BLACK);
 
-                    // --- Pitch Condition ---
-                    DrawText("Pitch Condition:", 100, 300, 20, DARKGRAY);
-                    const char* pitch_options[] = {"Dry", "Hard", "Grass"};
-                    for(int i=0; i<3; i++) {
-                        Rectangle pitchBtn = { 100 + i * 130, 330, 120, 40 };
-                        bool isSelected = (pitch_condition == i);
-                        DrawRectangleRec(pitchBtn, isSelected ? BROWN : LIGHTGRAY);
-                        DrawText(pitch_options[i], pitchBtn.x + 40, pitchBtn.y + 10, 20, BLACK);
-                        if(CheckCollisionPointRec(GetMousePosition(), pitchBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) pitch_condition = i;
+                        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                            if (CheckCollisionPointRec(GetMousePosition(), batBtn)) {
+                                toss_choice = 0;
+                            }
+                            if (CheckCollisionPointRec(GetMousePosition(), fieldBtn)) {
+                                toss_choice = 1;
+                            }
+                        }
                     }
+                } else { // User lost the toss
+                    if (toss_choice == -1) {
+                        toss_choice = rand() % 2; // AI makes a choice
+                    }
+                }
 
+                if (toss_choice != -1) {
+                    char choice_text[128];
+                    if (user_won_toss) {
+                        sprintf(choice_text, "You chose to %s first.", toss_choice == 0 ? "BAT" : "FIELD");
+                    } else {
+                        sprintf(choice_text, "Opponent chose to %s first.", toss_choice == 0 ? "BAT" : "FIELD");
+                    }
+                    DrawText(choice_text, GetScreenWidth() / 2 - MeasureText(choice_text, 20) / 2, GetScreenHeight() - 100, 20, DARKBLUE);
+                    
                     // --- Proceed Button ---
                     Rectangle proceedButton = { GetScreenWidth() - 220, GetScreenHeight() - 60, 200, 40 };
                     DrawRectangleRec(proceedButton, DARKGREEN);
@@ -2064,7 +2256,20 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                         squad_selection_turn = 0; // Start with the user's team
                         memset(player_selection_mask, 0, sizeof(player_selection_mask)); // Clear selection mask
                         validation_error[0] = '\0'; // Clear any previous errors
-                        toss_call = -1; toss_result = -1; // Reset toss state for the next match
+                        
+                        // Set batting and fielding teams based on toss choice
+                        Team* opponent_team = (currentMatch->teamA == user_team) ? currentMatch->teamB : currentMatch->teamA;
+                        bool user_bats_first = (user_won_toss && toss_choice == 0) || (!user_won_toss && toss_choice == 1);
+                        
+                        if (user_bats_first) {
+                            match_team_A = *user_team;
+                            match_team_B = *opponent_team;
+                        } else {
+                            match_team_A = *opponent_team;
+                            match_team_B = *user_team;
+                        }
+                        
+                        toss_call = -1; toss_result = -1; toss_choice = -1; // Reset toss state for the next match
                     }
                 }
             }
@@ -2119,12 +2324,38 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
 
             BeginScissorMode(view.x, view.y, view.width, view.height);
             for (int i = 0; i < team_to_select_for->num_players; i++) {
-                Rectangle playerButton = { view.x + 10, view.y + 10 + (i * itemHeight) + scroll.y, view.width - 20, itemHeight - 2 };
+                Rectangle playerButton = { view.x + 10, view.y + 10 + (i * itemHeight) + scroll.y, view.width - 120, itemHeight - 2 };
                 bool isSelected = player_selection_mask[i];
                 DrawRectangleRec(playerButton, isSelected ? SKYBLUE : LIGHTGRAY);
-                DrawText(team_to_select_for->players[i].name, playerButton.x + 10, playerButton.y + 5, 20, BLACK);
+                
+                char player_text[256];
+                sprintf(player_text, "%s", team_to_select_for->players[i].name);
+                if (i == team_to_select_for->captain_idx) strcat(player_text, " (C)");
+                if (i == team_to_select_for->vice_captain_idx) strcat(player_text, " (VC)");
+                DrawText(player_text, playerButton.x + 10, playerButton.y + 5, 20, BLACK);
+
                 if (CheckCollisionPointRec(GetMousePosition(), playerButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     player_selection_mask[i] = !player_selection_mask[i];
+                }
+
+                Rectangle c_button = { playerButton.x + playerButton.width + 5, playerButton.y, 40, itemHeight - 2 };
+                Rectangle vc_button = { c_button.x + c_button.width + 5, playerButton.y, 40, itemHeight - 2 };
+
+                DrawRectangleRec(c_button, (i == team_to_select_for->captain_idx) ? GOLD : LIGHTGRAY);
+                DrawText("C", c_button.x + 15, c_button.y + 5, 20, BLACK);
+                DrawRectangleRec(vc_button, (i == team_to_select_for->vice_captain_idx) ? SILVER : LIGHTGRAY);
+                DrawText("VC", vc_button.x + 10, vc_button.y + 5, 20, BLACK);
+
+                if (CheckCollisionPointRec(GetMousePosition(), c_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (i != team_to_select_for->vice_captain_idx) {
+                        team_to_select_for->captain_idx = i;
+                    }
+                }
+
+                if (CheckCollisionPointRec(GetMousePosition(), vc_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (i != team_to_select_for->captain_idx) {
+                        team_to_select_for->vice_captain_idx = i;
+                    }
                 }
             }
             EndScissorMode();
@@ -2185,6 +2416,24 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                     else if (bowlers < 5) strcpy(validation_error, "Squad must have at least 5 bowling options.");
                     else { // Validation passed
                         validation_error[0] = '\0'; // Clear error
+
+                        if (team_to_select_for->captain_idx == -1) {
+                            for (int i = 0; i < team_to_select_for->num_players; i++) {
+                                if (player_selection_mask[i]) {
+                                    team_to_select_for->captain_idx = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (team_to_select_for->vice_captain_idx == -1) {
+                            for (int i = 0; i < team_to_select_for->num_players; i++) {
+                                if (player_selection_mask[i] && i != team_to_select_for->captain_idx) {
+                                    team_to_select_for->vice_captain_idx = i;
+                                    break;
+                                }
+                            }
+                        }
 
                         // Save the selected XI into the appropriate temporary match team
                         Team* temp_match_team = (squad_selection_turn == 0) ? &match_team_A : &match_team_B;
