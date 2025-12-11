@@ -4,10 +4,10 @@
 #include "teams.h"
 #include "ui.h"
 
-static const char *TEAMS_FILE = "teams.dat";
-static const char *PLAYERS_FILE = "players.dat";
-static const char *UMPIRES_FILE = "umpires.dat";
-static const char *ALL_PLAYERS_FILE = "all_players.dat";
+static const char *TEAMS_FILE = "Data/teams.dat";
+static const char *PLAYERS_FILE = "Data/players.dat";
+static const char *UMPIRES_FILE = "Data/umpires.dat";
+static const char *ALL_PLAYERS_FILE = "Data/all_players.dat";
 
 Team* load_teams(int *num_teams);
 void save_teams(const Team *teams, int num_teams);
@@ -74,7 +74,7 @@ Team* load_teams(int *num_teams) {
     }
 
     // Count teams
-    char line[256];
+    char line[512];
     int count = 0;
     while (fgets(line, sizeof(line), f)) {
         if (strlen(line) > 1) {
@@ -97,21 +97,31 @@ Team* load_teams(int *num_teams) {
     }
 
     int i = 0;
-    while (fgets(line, sizeof(line), f)) {
-        int is_deleted = 0, is_hidden = 0;
-        char team_name[MAX_TEAM_NAME_LEN];
+    while (fgets(line, sizeof(line), f) && i < count) {
+        line[strcspn(line, "\r\n")] = 0;
+        char *token;
 
-        // New format: TeamName,is_deleted,is_hidden
-        // This is backward compatible; if is_hidden is missing, it remains 0.
-        int fields_read = sscanf(line, "%[^,],%d,%d", team_name, &is_deleted, &is_hidden);
-        if (fields_read >= 1) {
-            strncpy(teams[i].name, team_name, MAX_TEAM_NAME_LEN - 1);
-            teams[i].name[MAX_TEAM_NAME_LEN - 1] = '\0'; // Ensure null termination
-            teams[i].is_deleted = (is_deleted == 1);
-            teams[i].is_hidden = (is_hidden == 1);
-            teams[i].num_players = 0;
-            i++;
+        token = strtok(line, ",");
+        if (token == NULL) continue;
+        strncpy(teams[i].name, token, MAX_TEAM_NAME_LEN - 1);
+        teams[i].name[MAX_TEAM_NAME_LEN - 1] = '\0';
+
+        token = strtok(NULL, ",");
+        if (token != NULL) {
+            teams[i].is_deleted = atoi(token);
+        } else {
+            teams[i].is_deleted = 0;
         }
+
+        token = strtok(NULL, ",");
+        if (token != NULL) {
+            teams[i].is_hidden = atoi(token);
+        } else {
+            teams[i].is_hidden = 0;
+        }
+        
+        teams[i].num_players = 0;
+        i++;
     }
     fclose(f);
     *num_teams = i;
@@ -123,31 +133,37 @@ Team* load_teams(int *num_teams) {
     }
 
     while (fgets(line, sizeof(line), pf)) {
-        for (int j = 0; j < *num_teams; j++) {
-            // Check if the line starts with the team name
-            if (strncmp(line, teams[j].name, strlen(teams[j].name)) == 0 && line[strlen(teams[j].name)] == ',') {
-                if (teams[j].num_players < MAX_PLAYERS) {
-                    Player *p = &teams[j].players[teams[j].num_players++];
-                    // New comprehensive sscanf for all player fields
-                    // Format: Team,Name,Type,BatStyle,BowlStyle,IsWK,IsActive,BatSkill,BowlSkill,FieldSkill,Matches,Runs,Wkts,Stumps,RunOuts
-                    int n = sscanf(line, "%*[^,],%[^,],%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
-                           p->name,
-                           (int*)&p->type,
-                           (int*)&p->batting_style,
-                           (int*)&p->bowling_style,
-                           (int*)&p->is_wicketkeeper,
-                           (int*)&p->is_active,
-                           &p->batting_skill,
-                           &p->bowling_skill,
-                           &p->fielding_skill,
-                           &p->matches_played,
-                           &p->total_runs,
-                           &p->total_wickets,
-                           &p->total_stumpings,
-                           &p->total_run_outs);
+        line[strcspn(line, "\r\n")] = 0;
+        char *team_name = strtok(line, ",");
+        if (team_name == NULL) continue;
 
-                    if (n != 14) { // If parsing fails, decrement count and skip
-                        teams[j].num_players--;
+        for (int j = 0; j < *num_teams; j++) {
+            if (strcmp(teams[j].name, team_name) == 0) {
+                if (teams[j].num_players < MAX_PLAYERS) {
+                    Player *p = &teams[j].players[teams[j].num_players];
+                    char *token;
+                    int field = 0;
+                    while((token = strtok(NULL, ",")) != NULL) {
+                        switch(field) {
+                            case 0: strncpy(p->name, token, MAX_PLAYER_NAME_LEN - 1); p->name[MAX_PLAYER_NAME_LEN - 1] = '\0'; break;
+                            case 1: p->type = (PlayerType)atoi(token); break;
+                            case 2: p->batting_style = (BattingStyle)atoi(token); break;
+                            case 3: p->bowling_style = (BowlingStyle)atoi(token); break;
+                            case 4: p->is_wicketkeeper = atoi(token); break;
+                            case 5: p->is_active = atoi(token); break;
+                            case 6: p->batting_skill = atoi(token); break;
+                            case 7: p->bowling_skill = atoi(token); break;
+                            case 8: p->fielding_skill = atoi(token); break;
+                            case 9: p->matches_played = atoi(token); break;
+                            case 10: p->total_runs = atoi(token); break;
+                            case 11: p->total_wickets = atoi(token); break;
+                            case 12: p->total_stumpings = atoi(token); break;
+                            case 13: p->total_run_outs = atoi(token); break;
+                        }
+                        field++;
+                    }
+                    if (field == 14) {
+                        teams[j].num_players++;
                     }
                 }
                 break;
@@ -388,8 +404,7 @@ Umpire* load_umpires(int *num_umpires) {
     int i = 0;
     while (fgets(line, sizeof(line), f) && i < count) {
         // New format: Name,Country,SinceYear,MatchesUmpired
-        if (sscanf(line, "%63[^,],%63[^,],%d,%d",
-                   umpires[i].name, umpires[i].country, &umpires[i].since_year, &umpires[i].matches_umpired) == 4) {
+        if (sscanf(line, "%63[^,],%63[^,],%d,%d", umpires[i].name, umpires[i].country, &umpires[i].since_year, &umpires[i].matches_umpired) == 4) {
             i++;
         }
     }

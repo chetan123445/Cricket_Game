@@ -168,7 +168,7 @@ static void admin_add_player_to_pool() {
 
     printf("Type: B=batsman, b=bowler, a=allrounder, w=wicketkeeper: ");
     char typec;
-    if (scanf(" %c", &typec) != 1) { typec = 'B'; }
+    if (scanf(" %c", &typec) != 1) { typec = 'B'; } // Default to batsman if input fails
     clean_stdin();
     
     PlayerType t = PLAYER_TYPE_BATSMAN;
@@ -187,7 +187,7 @@ static void admin_add_player_to_pool() {
     p.runs_scored = 0;
     p.wickets_taken = 0;
     
-    FILE *f = fopen("all_players.dat", "a");
+    FILE *f = fopen("Data/all_players.dat", "a");
     if (!f) {
         printf("Failed to open all_players.dat\n");
         return;
@@ -206,7 +206,7 @@ static void admin_add_umpire()
     if (!fgets(name, sizeof(name), stdin)) return;
     name[strcspn(name, "\r\n")] = 0;
     if (strlen(name) == 0) { printf("Empty, cancelled.\n"); return; }
-    FILE *f = fopen("umpires.dat", "a");
+    FILE *f = fopen("Data/umpires.dat", "a");
     if (!f) { printf("Unable to save umpire.\n"); return; }
     fprintf(f, "%s\n", name);
     fclose(f);

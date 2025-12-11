@@ -36,3 +36,4 @@ void show_user_history(const char *user_email)
     while (fgets(line, sizeof(line), f)) printf("%s", line);
     fclose(f);
 }
+

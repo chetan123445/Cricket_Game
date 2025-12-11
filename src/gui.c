@@ -96,7 +96,7 @@ int main(void)
 
     gameState.batting_team = &teamA;
     gameState.bowling_team = &teamB;
-    gameState.max_overs = 20;
+    gameState.max_overs = 50;
     gameState.fielding_setup = FIELD_SETUP_DEFAULT; // Initialize with default fielding
 
     // GUI State Initialization
@@ -428,8 +428,8 @@ static void DrawFielders(GameState *gameState, Vector2 fieldCenter, float fieldR
     Vector2 keeperPos = { fieldCenter.x + 220, fieldCenter.y };
     DrawPlayerFigure(keeperPos, RED, false, gameState->bowling_team->name, false);
 
-    // Draw the other 9 fielders
-    for (int i = 0; i < gameState->bowling_team->num_players; i++) {
+    // Draw the other 9 fielders from the setup
+    for (int i = 0; i < 9; i++) {
         if (i != gameState->bowler_idx && i != keeper_idx && fielder_count < 9) {
             // Normalize the direction vector to ensure it's on the unit circle, then scale it
             // to place it safely inside the field radius.
@@ -439,8 +439,6 @@ static void DrawFielders(GameState *gameState, Vector2 fieldCenter, float fieldR
                 fieldCenter.y + pos.y * (fieldRadius - 15)
              };
             DrawPlayerFigure(fielderPos, RED, false, NULL, false);
-            // This is a temporary way to map fielder number to player index.
-            // A more robust system would be needed for substitutions etc.
             fielder_count++; 
         }
     }
@@ -459,6 +457,8 @@ typedef enum {
     PHASE_BALL_TRAVEL,
     PHASE_BATSMAN_SWING,
     PHASE_BALL_IN_FIELD,
+    PHASE_PLAY_ENDING,
+    PHASE_BOUNDARY_ANIMATION,
     PHASE_BATSMAN_RUNNING,
     PHASE_INNINGS_OVER
 } GameplayPhase;
@@ -496,13 +496,14 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     static Vector2 ballTargetPos;
     static float animTimer = 0.0f;
     static bool showRunButton = false;
+    static float boundaryAnimTimer = 0.0f; // Timer for boundary animation
+    static float fielderPauseTimer = 0.0f; // New timer for fielder's pause
     static int runsThisBall = 0;
     static BallOutcome currentBallOutcome;
     static Vector2 strikerAnimPos, nonStrikerAnimPos;
     static float runAnimTimer = 0.0f;
     static Vector2 fielderRunPos;
     static int nearestFielderIndex = -1;
-    static Vector2 fielderStartPosition;
     static Vector2 keeperPos; // This is now calculated inside the function
 
     bool isGameOver = (gameState->overs_completed >= gameState->max_overs || gameState->wickets >= 10);
@@ -515,6 +516,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
         strikerAnimPos = (Vector2){ fieldCenter.x + 180, fieldCenter.y };
         nonStrikerAnimPos = (Vector2){ fieldCenter.x - 180, fieldCenter.y };
         runsThisBall = 0;
+        fielderPauseTimer = 0.0f; // Reset pause timer for a new ball
+        boundaryAnimTimer = 0.0f; // Reset boundary animation timer
     }
 
 
@@ -614,7 +617,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                 } else {
                     currentPhase = PHASE_BALL_IN_FIELD;
                     // Calculate random position for the ball to land
-                    float angle = (float)(GetRandomValue(-135, 135)) * DEG2RAD; // More realistic hitting angles
+                    float angle = (float)(GetRandomValue(-135, 135)) * DEG2RAD;
                     float dist = 50 + (rand() % (int)(boundaryRadius + 40)); // Can go outside boundary
                     ballTargetPos = (Vector2){ fieldCenter.x + cosf(angle) * dist, fieldCenter.y + sinf(angle) * dist };
                     ballPos = strikerEnd;
@@ -630,48 +633,63 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                             gameState->total_runs += 4;
                         }
                         celebration_end_time = GetTime() + 2.0;
-                        currentPhase = PHASE_IDLE; // End of play
+                        currentPhase = PHASE_BOUNDARY_ANIMATION;
+                        animTimer = 0.0f; // Reset timer for the animation
                     } else {
-                        // Find nearest fielder to run towards the ball and start the fielding phase
+                        // Find nearest fielder to run towards the ball
                         float nearestDist = 10000.0f;
+                        nearestFielderIndex = -1; // Reset nearest fielder index
                         const Vector2 *setup = setups[gameState->fielding_setup];
                         for (int i = 0; i < 9; i++) { // Iterate through the 9 fielder positions
                             Vector2 pos = Vector2Normalize(setup[i]);
-                            Vector2 fielderPos = { 
+                            Vector2 fielderBasePos = { 
                                 fieldCenter.x + pos.x * (fieldRadius - 15),
                                 fieldCenter.y + pos.y * (fieldRadius - 15)
                             };
-                            float d = Vector2Distance(fielderPos, ballTargetPos);
+                            float d = Vector2Distance(fielderBasePos, ballTargetPos);
                             if (d < nearestDist) {
                                 nearestDist = d;
-                                fielderStartPosition = fielderPos;
-                                fielderRunPos = fielderPos;
+                                fielderRunPos = fielderBasePos;
+                                nearestFielderIndex = i; // Store the index of the running fielder
                             }
                         }
                         showRunButton = true;
-                        currentPhase = PHASE_FIELDING;
                     }
                 }
                 animTimer = 0.0f;
             }
             break;
         case PHASE_BALL_IN_FIELD:
-            // This phase is now merged into the swing and fielding phases
-            break;
-        case PHASE_FIELDING:
             // Animate ball and fielder moving to the target position
-            if (Vector2Distance(ballPos, ballTargetPos) > 5.0f) {
-                ballPos = Vector2Lerp(ballPos, ballTargetPos, GetFrameTime() * 2.0f);
-            }
-            if (Vector2Distance(fielderRunPos, ballTargetPos) > 5.0f) {
-                fielderRunPos = Vector2MoveTowards(fielderRunPos, ballTargetPos, 200.0f * GetFrameTime());
-            } else { // Fielder has reached the ball
-                showRunButton = false; // Stop allowing runs
-                // Animate throw back to keeper
-                ballPos = Vector2MoveTowards(ballPos, keeperPos, 400.0f * GetFrameTime());
-                if (Vector2Distance(ballPos, keeperPos) < 10.0f) {
-                    currentPhase = PHASE_IDLE; // End of play
+            {
+                bool ballReachedTarget = (Vector2Distance(ballPos, ballTargetPos) < 5.0f);
+                bool fielderReachedTarget = (Vector2Distance(fielderRunPos, ballTargetPos) < 5.0f);
+
+                if (!ballReachedTarget) {
+                    ballPos = Vector2Lerp(ballPos, ballTargetPos, GetFrameTime() * 2.0f);
                 }
+                if (!fielderReachedTarget) {
+                    fielderRunPos = Vector2MoveTowards(fielderRunPos, ballTargetPos, 200.0f * GetFrameTime());
+                }
+
+                if (fielderReachedTarget) {
+                    showRunButton = false; // Stop allowing runs
+
+                    if (fielderPauseTimer == 0.0f) { // Start the pause timer only once
+                        fielderPauseTimer = GetTime();
+                    }
+
+                    if (GetTime() - fielderPauseTimer >= 1.0f) { // After 1 second pause
+                        currentPhase = PHASE_IDLE; // Reset for the next ball
+                    }
+                }
+            }
+            break;
+        case PHASE_BOUNDARY_ANIMATION:
+            boundaryAnimTimer += GetFrameTime();
+            if (boundaryAnimTimer >= 1.0f) { // After 1 second of boundary animation
+                currentPhase = PHASE_IDLE; // Allow next ball
+                boundaryAnimTimer = 0.0f;
             }
             break;
         case PHASE_BATSMAN_RUNNING:
@@ -685,8 +703,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                 nonStrikerAnimPos = Vector2Lerp(strikerEnd, nonStrikerEnd, runAnimTimer / 1.5f);
             }
 
-            if (runAnimTimer >= 1.2f) { // 1.2 seconds to complete a run
-                currentPhase = PHASE_BALL_IN_FIELD; // Go back to fielding phase to allow another run or for fielder to throw
+            if (runAnimTimer >= 1.2f) {
+                currentPhase = PHASE_BALL_IN_FIELD; // Go back to fielding phase to allow another run
             }
             break;
         default: // PHASE_IDLE or PHASE_INNINGS_OVER
@@ -727,19 +745,30 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     Player *non_striker = &gameState->batting_team->players[gameState->non_striker_idx];
     Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
 
-    // Always draw the fielders in their base positions
-    DrawFielders(gameState, fieldCenter, fieldRadius);
+    // --- Draw Fielders (excluding the one who is running) ---
+    const Vector2 *current_setup = setups[gameState->fielding_setup];
+    int keeper_idx = -1; // Find keeper to exclude them
+    for (int i = 0; i < gameState->bowling_team->num_players; i++) if (gameState->bowling_team->players[i].is_wicketkeeper) { keeper_idx = i; break; }
+    if (keeper_idx == -1 && gameState->bowling_team->num_players > 0) keeper_idx = gameState->bowling_team->num_players - 1;
 
+    DrawPlayerFigure(keeperPos, RED, false, gameState->bowling_team->name, false);
+
+    for (int i = 0; i < 9; i++) {
+        if (i != nearestFielderIndex) { // Don't draw the fielder who is currently running
+            Vector2 pos = Vector2Normalize(current_setup[i]);
+            Vector2 fielderPos = { fieldCenter.x + pos.x * (fieldRadius - 15), fieldCenter.y + pos.y * (fieldRadius - 15) };
+            DrawPlayerFigure(fielderPos, RED, false, NULL, false);
+        }
+    }
 
     // Draw main players
     DrawPlayerFigure(strikerAnimPos, BLUE, true, gameState->batting_team->name, currentPhase == PHASE_BATSMAN_SWING);
     DrawText(striker->name, strikerAnimPos.x - MeasureText(striker->name, 10)/2, strikerAnimPos.y + 30, 10, WHITE);
 
-    DrawPlayerFigure(nonStrikerAnimPos, BLUE, true, gameState->batting_team->name, false); // Non-striker also has a bat
+    DrawPlayerFigure(nonStrikerAnimPos, BLUE, true, gameState->batting_team->name, false);
     DrawText(non_striker->name, nonStrikerAnimPos.x - MeasureText(non_striker->name, 10)/2, nonStrikerAnimPos.y + 30, 10, WHITE);
 
-    // If a fielder is running, draw them at their current animated position
-    if (currentPhase == PHASE_BALL_IN_FIELD || currentPhase == PHASE_BATSMAN_RUNNING) {
+    if (currentPhase == PHASE_BALL_IN_FIELD) {
         DrawPlayerFigure(fielderRunPos, RED, false, NULL, false);
     }
 
@@ -747,8 +776,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     DrawText(bowler->name, bowlerAnimPos.x - MeasureText(bowler->name, 10)/2, bowlerAnimPos.y + 30, 10, WHITE);
     
     // Draw ball
-    if (currentPhase == PHASE_BOWLER_RUNUP) DrawCircleV((Vector2){bowlerAnimPos.x, bowlerAnimPos.y-5}, 5, WHITE); // Ball in hand
-    if (currentPhase == PHASE_BALL_TRAVEL || currentPhase == PHASE_FIELDING) DrawCircleV(ballPos, 5, WHITE);
+    // The ball is only drawn when it's actually in play (traveling or in field)
+    if (currentPhase == PHASE_BALL_TRAVEL || currentPhase == PHASE_BALL_IN_FIELD || currentPhase == PHASE_BATSMAN_RUNNING) DrawCircleV(ballPos, 5, WHITE);
 
     // --- Draw Scoreboard on top ---
     char scoreText[100];
@@ -769,7 +798,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     DrawText(totalScoreText, 20, GetScreenHeight() - 40, 30, WHITE);
 
     if (currentPhase == PHASE_IDLE && !isGameOver) {
-        DrawText("Press [SPACE] to Bowl", 20, GetScreenHeight() - 70, 20, YELLOW);
+        DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 70, 20, YELLOW);
     } else if (isGameOver) {
         DrawText("INNINGS FINISHED", GetScreenWidth()/2 - MeasureText("INNINGS FINISHED", 50)/2, GetScreenHeight()/2, 50, RED);
     }
@@ -810,16 +839,16 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
     static int editIndex = -1; // -1 means not editing, >= 0 is the index of the umpire being edited
 
     // Input boxes for adding a new umpire
-    static TextBox nameBox = { { 20, 100, 200, 30 }, {0}, 0, false, false };
-    static TextBox countryBox = { { 230, 100, 150, 30 }, {0}, 0, false, false };
-    static TextBox yearBox = { { 390, 100, 100, 30 }, {0}, 0, false, false };
-    static TextBox matchesBox = { { 500, 100, 100, 30 }, {0}, 0, false, false };
+    static TextBox nameBox = { { 0}, {0}, 0, false, false };
+    static TextBox countryBox = { { 0}, {0}, 0, false, false };
+    static TextBox yearBox = { { 0}, {0}, 0, false, false };
+    static TextBox matchesBox = { { 0}, {0}, 0, false, false };
     const Rectangle addButton = { 610, 100, 170, 30 };
     const Rectangle backButton = { 20, GetScreenHeight() - 50, 150, 40 };
     const Rectangle cancelEditButton = { 610, 135, 170, 25 };
 
     // Search and Filter boxes
-    static TextBox searchBox = { { 20, 60, 200, 25 }, {0}, 0, false, false };
+    static TextBox searchBox = { { 0}, {0}, 0, false, false };
     static TextBox filterCountryBox;
     static TextBox filterMatchesBox;
     static TextBox filterYearBox;
@@ -1072,7 +1101,7 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
             }
         }
     } else {
-        DrawTextBold("No umpires found in umpires.dat.", view.x + 20, view.y + 10, 20, GRAY); // No scroll needed
+        DrawTextBold("No umpires found in Data/umpires.dat.", view.x + 20, view.y + 10, 20, GRAY); // No scroll needed
     }
 
     // Stop clipping
@@ -1493,7 +1522,7 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
         // --- Column Definitions and Sizing ---
         const int col_padding = 15;
-        float col_widths[] = { 150, 120, 50, 80, 40, 70, 80, 80, 80, 40, 70, 70, 80, 80, 120 }; // Last is for actions
+        float col_widths[] = { 150, 120, 50, 80, 40, 70, 80, 80, 80, 40, 70, 80, 80, 80, 120 }; // Last is for actions
         const char* col_headers[] = { "Name", "Role", "Bat", "Bowl", "WK", "Active", "Bat Skl", "Bwl Skl", "Fld Skl", "M", "Runs", "Wkts", "Stumps", "RunOuts", "Actions" };
         float col_x[15];
         col_x[0] = playerListView.x + 10 + playerScroll.x;
@@ -1562,8 +1591,7 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
         }
         
         EndScissorMode();
-        }
-
+    }
     } else {
         DrawTextBold("Select a team to view players", panelRight.x + 10, panelRight.y + 15, 20, GRAY);
     }
@@ -1971,8 +1999,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                 DrawText(currentMatch->teamB->players[0].name, captainBPos.x - MeasureText(currentMatch->teamB->players[0].name, 10)/2, captainBPos.y + 30, 10, BLACK);
 
                 DrawPlayerFigure(umpirePos, BLACK, false, "Umpire", false);
-                // ---
-
+// ---
                 DrawText("Call the Toss!", GetScreenWidth() / 2 - MeasureText("Call the Toss!", 30) / 2, 200, 30, DARKBLUE);
                 Rectangle headsBtn = { GetScreenWidth() / 2 - 210, 250, 200, 50 };
                 Rectangle tailsBtn = { GetScreenWidth() / 2 + 10, 250, 200, 50 };
@@ -2178,6 +2205,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                             // TODO: Pass match_team_A and match_team_B to the gameplay screen
                             gameState->batting_team = &match_team_A; // Example setup
                             gameState->bowling_team = &match_team_B;
+                            gameState->max_overs = 50; // Set overs for ODI
                             gameState->rain_percentage = rain_percentage; // Pass the rain setting
                             ChangeScreen(state, SCREEN_GAMEPLAY);
                         }

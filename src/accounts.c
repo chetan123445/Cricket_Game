@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include "accounts.h"
 
-static const char *ACCOUNTS_FILE = "accounts.dat";
-static const char *ADMINS_FILE = "admins.dat";
+static const char *ACCOUNTS_FILE = "Data/accounts.dat";
+static const char *ADMINS_FILE = "Data/admins.dat";
 
 static int email_exists(const char *email, char *out_name);
 
