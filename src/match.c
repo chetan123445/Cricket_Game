@@ -349,33 +349,28 @@ static int simulate_innings(GameState *state_ptr, Team *batting_team_param, Team
 
 // Function to save the current GameState to a file
 bool save_game_state(const GameState *state, const char *filename) {
-    FILE *f = fopen(filename, "wb");
+    FILE *f = fopen(filename, "w");
     if (!f) {
         fprintf(stderr, "Error: Could not open save file %s for writing.\n", filename);
         return false;
     }
 
-    // Save non-pointer members directly
-    fwrite(state->batting_team_tag, sizeof(state->batting_team_tag), 1, f);
-    fwrite(state->bowling_team_tag, sizeof(state->bowling_team_tag), 1, f);
-    fwrite(&state->total_runs, sizeof(int), 1, f);
-    fwrite(&state->wickets, sizeof(int), 1, f);
-    fwrite(&state->overs_completed, sizeof(int), 1, f);
-    fwrite(&state->balls_bowled_in_over, sizeof(int), 1, f);
-    fwrite(&state->current_powerplay, sizeof(Powerplay), 1, f);
-    fwrite(&state->striker_idx, sizeof(int), 1, f);
-    fwrite(&state->non_striker_idx, sizeof(int), 1, f);
-    fwrite(&state->bowler_idx, sizeof(int), 1, f);
-    fwrite(&state->max_overs, sizeof(int), 1, f);
-    fwrite(&state->target, sizeof(int), 1, f);
-    fwrite(&state->rain_percentage, sizeof(float), 1, f);
-    fwrite(state->match_id, sizeof(state->match_id), 1, f);
-    fwrite(&state->format, sizeof(MatchFormat), 1, f);
-    fwrite(&state->inning_num, sizeof(int), 1, f);
-
-    // Note: FieldingSetup and custom_field_setup are not saved here,
-    // as they are typically re-initialized or part of the GUI state.
-    // If they need to be persisted, they must be added to the serialization.
+    fprintf(f, "batting_team_tag: %s\n", state->batting_team_tag);
+    fprintf(f, "bowling_team_tag: %s\n", state->bowling_team_tag);
+    fprintf(f, "total_runs: %d\n", state->total_runs);
+    fprintf(f, "wickets: %d\n", state->wickets);
+    fprintf(f, "overs_completed: %d\n", state->overs_completed);
+    fprintf(f, "balls_bowled_in_over: %d\n", state->balls_bowled_in_over);
+    fprintf(f, "current_powerplay: %d\n", state->current_powerplay);
+    fprintf(f, "striker_idx: %d\n", state->striker_idx);
+    fprintf(f, "non_striker_idx: %d\n", state->non_striker_idx);
+    fprintf(f, "bowler_idx: %d\n", state->bowler_idx);
+    fprintf(f, "max_overs: %d\n", state->max_overs);
+    fprintf(f, "target: %d\n", state->target);
+    fprintf(f, "rain_percentage: %f\n", state->rain_percentage);
+    fprintf(f, "match_id: %s\n", state->match_id);
+    fprintf(f, "format: %d\n", state->format);
+    fprintf(f, "inning_num: %d\n", state->inning_num);
 
     fclose(f);
     return true;
@@ -383,29 +378,31 @@ bool save_game_state(const GameState *state, const char *filename) {
 
 // Function to load GameState from a file
 bool load_game_state(GameState *state, const char *filename) {
-    FILE *f = fopen(filename, "rb");
+    FILE *f = fopen(filename, "r");
     if (!f) {
         fprintf(stderr, "Error: Could not open save file %s for reading.\n", filename);
         return false;
     }
 
-    // Read non-pointer members directly
-    fread(state->batting_team_tag, sizeof(state->batting_team_tag), 1, f);
-    fread(state->bowling_team_tag, sizeof(state->bowling_team_tag), 1, f);
-    fread(&state->total_runs, sizeof(int), 1, f);
-    fread(&state->wickets, sizeof(int), 1, f);
-    fread(&state->overs_completed, sizeof(int), 1, f);
-    fread(&state->balls_bowled_in_over, sizeof(int), 1, f);
-    fread(&state->current_powerplay, sizeof(Powerplay), 1, f);
-    fread(&state->striker_idx, sizeof(int), 1, f);
-    fread(&state->non_striker_idx, sizeof(int), 1, f);
-    fread(&state->bowler_idx, sizeof(int), 1, f);
-    fread(&state->max_overs, sizeof(int), 1, f);
-    fread(&state->target, sizeof(int), 1, f);
-    fread(&state->rain_percentage, sizeof(float), 1, f);
-    fread(state->match_id, sizeof(state->match_id), 1, f);
-    fread(&state->format, sizeof(MatchFormat), 1, f);
-    fread(&state->inning_num, sizeof(int), 1, f);
+    char key[64];
+    while (fscanf(f, "%s", key) != EOF) {
+        if (strcmp(key, "batting_team_tag:") == 0) fscanf(f, "%s", state->batting_team_tag);
+        else if (strcmp(key, "bowling_team_tag:") == 0) fscanf(f, "%s", state->bowling_team_tag);
+        else if (strcmp(key, "total_runs:") == 0) fscanf(f, "%d", &state->total_runs);
+        else if (strcmp(key, "wickets:") == 0) fscanf(f, "%d", &state->wickets);
+        else if (strcmp(key, "overs_completed:") == 0) fscanf(f, "%d", &state->overs_completed);
+        else if (strcmp(key, "balls_bowled_in_over:") == 0) fscanf(f, "%d", &state->balls_bowled_in_over);
+        else if (strcmp(key, "current_powerplay:") == 0) fscanf(f, "%d", (int*)&state->current_powerplay);
+        else if (strcmp(key, "striker_idx:") == 0) fscanf(f, "%d", &state->striker_idx);
+        else if (strcmp(key, "non_striker_idx:") == 0) fscanf(f, "%d", &state->non_striker_idx);
+        else if (strcmp(key, "bowler_idx:") == 0) fscanf(f, "%d", &state->bowler_idx);
+        else if (strcmp(key, "max_overs:") == 0) fscanf(f, "%d", &state->max_overs);
+        else if (strcmp(key, "target:") == 0) fscanf(f, "%d", &state->target);
+        else if (strcmp(key, "rain_percentage:") == 0) fscanf(f, "%f", &state->rain_percentage);
+        else if (strcmp(key, "match_id:") == 0) fscanf(f, "%s", state->match_id);
+        else if (strcmp(key, "format:") == 0) fscanf(f, "%d", (int*)&state->format);
+        else if (strcmp(key, "inning_num:") == 0) fscanf(f, "%d", &state->inning_num);
+    }
 
     fclose(f);
 

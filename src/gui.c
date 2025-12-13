@@ -580,6 +580,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     static double playMissMessageEndTime = 0.0; // For "Play and Miss!" message
     static char outcomeMessage[32] = {0};
     static double outcomeMessageEndTime = 0.0;
+    static float ballAltitude = 0.0f;
+    static float ballVelocityY = 0.0f;
 
     bool isGameOver = (gameState->overs_completed >= gameState->max_overs || gameState->wickets >= 10);
 
@@ -828,10 +830,14 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                     runsThisBall = 6;
                     strcpy(outcomeMessage, "SIX!");
                     outcomeMessageEndTime = GetTime() + 2.0;
+                    ballAltitude = 0.0f;
+                    ballVelocityY = 150.0f;
                 } else { // Bounces to boundary for 4
                     runsThisBall = 4;
                     strcpy(outcomeMessage, "FOUR!");
                     outcomeMessageEndTime = GetTime() + 2.0;
+                    ballAltitude = 0.0f;
+                    ballVelocityY = 80.0f;
                 }
                 gameState->total_runs += runsThisBall;
                 striker->total_runs += runsThisBall;
@@ -986,8 +992,25 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                 ballPos = Vector2Lerp(ballPos, ballTargetPos, GetFrameTime() * 3.0f);
             }
 
+            // Update ball altitude for 3D effect
+            ballAltitude += ballVelocityY * GetFrameTime();
+            ballVelocityY -= 300.0f * GetFrameTime(); // Gravity
+
+            if (runsThisBall == 4) { // Four animation with bounces
+                if (ballAltitude < 0) {
+                    ballAltitude = 0;
+                    ballVelocityY *= -0.6f; // Bounce with some energy loss
+                    if (fabs(ballVelocityY) < 10.0f) ballVelocityY = 0; // Stop bouncing
+                }
+            } else { // Six animation
+                if (ballAltitude < 0) {
+                    ballAltitude = 0;
+                    ballVelocityY = 0;
+                }
+            }
+
             boundaryAnimTimer += GetFrameTime();
-            if (boundaryAnimTimer >= 1.5f) { // After 1.5 seconds of boundary animation
+            if (boundaryAnimTimer >= 2.5f) { // Increased timer for better animation
                 // Inlined ball update logic
                 gameState->balls_bowled_in_over++;
                 if (gameState->balls_bowled_in_over >= 6) {
@@ -1213,7 +1236,12 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     
     // Draw ball
     // The ball is only drawn when it's actually in play (traveling or in field)
-    if (currentPhase == PHASE_BALL_TRAVEL || currentPhase == PHASE_BALL_IN_FIELD || currentPhase == PHASE_BATSMAN_RUNNING || currentPhase == PHASE_BOUNDARY_ANIMATION) DrawCircleV(ballPos, 5, WHITE);
+    if (currentPhase == PHASE_BALL_TRAVEL || currentPhase == PHASE_BALL_IN_FIELD || currentPhase == PHASE_BATSMAN_RUNNING || currentPhase == PHASE_BOUNDARY_ANIMATION) {
+        if (ballAltitude > 0) {
+            DrawCircle(ballPos.x, ballPos.y, 6, Fade(BLACK, 0.4f)); // Shadow
+        }
+        DrawCircle(ballPos.x, ballPos.y - ballAltitude, 6, WHITE); // Ball
+    }
 
     // --- Draw Scoreboard on top ---
     char scoreText[100];
@@ -2010,8 +2038,22 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             Player* p = &selectedTeam->players[i];
             float y_pos = playerListView.y + 40 + (i * 25) + playerScroll.y;
             
+            Color textColor = BLACK;
+            char name_suffix[8] = {0};
+
+            if (i == selectedTeam->captain_idx) {
+                textColor = GOLD;
+                strcpy(name_suffix, " (C)");
+            } else if (i == selectedTeam->vice_captain_idx) {
+                textColor = SILVER;
+                strcpy(name_suffix, " (VC)");
+            }
+
+            char player_display_name[MAX_PLAYER_NAME_LEN + 8];
+            snprintf(player_display_name, sizeof(player_display_name), "%s%s", p->name, name_suffix);
+
             // Draw all player details in their respective columns, perfectly aligned
-            DrawText(p->name, col_x[0], y_pos, 20, BLACK);
+            DrawText(player_display_name, col_x[0], y_pos, 20, textColor);
             DrawText(playerTypeNames[p->type], col_x[1], y_pos, 20, DARKGRAY);
             DrawText(p->batting_style == BATTING_STYLE_RHB ? "RHB" : "LHB", col_x[2], y_pos, 20, DARKGRAY);
             DrawText(bowlStyleNames[p->bowling_style], col_x[3], y_pos, 20, DARKGRAY);
@@ -2754,11 +2796,20 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                             memset(player_selection_mask, 0, sizeof(player_selection_mask)); // Reset for next team
                         } else {
                             // Both teams selected, start the match
-                            // TODO: Pass match_team_A and match_team_B to the gameplay screen
-                            gameState->batting_team = &match_team_A; // Example setup
+                            if (FileExists("Data/saves/resume.dat")) {
+                                remove("Data/saves/resume.dat");
+                            }
+                            
+                            // Reset game state for a new match
+                            memset(gameState, 0, sizeof(GameState));
+                            gameState->batting_team = &match_team_A;
                             gameState->bowling_team = &match_team_B;
+                            strcpy(gameState->batting_team_tag, match_team_A.tag);
+                            strcpy(gameState->bowling_team_tag, match_team_B.tag);
                             gameState->max_overs = 50; // Set overs for ODI
                             gameState->rain_percentage = rain_percentage; // Pass the rain setting
+                            gameState->inning_num = 1;
+                            
                             ChangeScreen(state, SCREEN_GAMEPLAY);
                         }
                     }
