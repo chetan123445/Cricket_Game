@@ -378,30 +378,51 @@ bool save_game_state(const GameState *state, const char *filename) {
 
 // Function to load GameState from a file
 bool load_game_state(GameState *state, const char *filename) {
-    FILE *f = fopen(filename, "r");
+    FILE *f = fopen(filename, "rb"); // Use "rb" for binary-safe reading on all platforms
     if (!f) {
         fprintf(stderr, "Error: Could not open save file %s for reading.\n", filename);
         return false;
     }
 
-    char key[64];
-    while (fscanf(f, "%s", key) != EOF) {
-        if (strcmp(key, "batting_team_tag:") == 0) fscanf(f, "%s", state->batting_team_tag);
-        else if (strcmp(key, "bowling_team_tag:") == 0) fscanf(f, "%s", state->bowling_team_tag);
-        else if (strcmp(key, "total_runs:") == 0) fscanf(f, "%d", &state->total_runs);
-        else if (strcmp(key, "wickets:") == 0) fscanf(f, "%d", &state->wickets);
-        else if (strcmp(key, "overs_completed:") == 0) fscanf(f, "%d", &state->overs_completed);
-        else if (strcmp(key, "balls_bowled_in_over:") == 0) fscanf(f, "%d", &state->balls_bowled_in_over);
-        else if (strcmp(key, "current_powerplay:") == 0) fscanf(f, "%d", (int*)&state->current_powerplay);
-        else if (strcmp(key, "striker_idx:") == 0) fscanf(f, "%d", &state->striker_idx);
-        else if (strcmp(key, "non_striker_idx:") == 0) fscanf(f, "%d", &state->non_striker_idx);
-        else if (strcmp(key, "bowler_idx:") == 0) fscanf(f, "%d", &state->bowler_idx);
-        else if (strcmp(key, "max_overs:") == 0) fscanf(f, "%d", &state->max_overs);
-        else if (strcmp(key, "target:") == 0) fscanf(f, "%d", &state->target);
-        else if (strcmp(key, "rain_percentage:") == 0) fscanf(f, "%f", &state->rain_percentage);
-        else if (strcmp(key, "match_id:") == 0) fscanf(f, "%s", state->match_id);
-        else if (strcmp(key, "format:") == 0) fscanf(f, "%d", (int*)&state->format);
-        else if (strcmp(key, "inning_num:") == 0) fscanf(f, "%d", &state->inning_num);
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        int int_val;
+        float float_val;
+        char str_val[100];
+
+        if (sscanf(line, "batting_team_tag: %99s", str_val) == 1) {
+            strcpy(state->batting_team_tag, str_val);
+        } else if (sscanf(line, "bowling_team_tag: %99s", str_val) == 1) {
+            strcpy(state->bowling_team_tag, str_val);
+        } else if (sscanf(line, "total_runs: %d", &int_val) == 1) {
+            state->total_runs = int_val;
+        } else if (sscanf(line, "wickets: %d", &int_val) == 1) {
+            state->wickets = int_val;
+        } else if (sscanf(line, "overs_completed: %d", &int_val) == 1) {
+            state->overs_completed = int_val;
+        } else if (sscanf(line, "balls_bowled_in_over: %d", &int_val) == 1) {
+            state->balls_bowled_in_over = int_val;
+        } else if (sscanf(line, "current_powerplay: %d", &int_val) == 1) {
+            state->current_powerplay = (Powerplay)int_val;
+        } else if (sscanf(line, "striker_idx: %d", &int_val) == 1) {
+            state->striker_idx = int_val;
+        } else if (sscanf(line, "non_striker_idx: %d", &int_val) == 1) {
+            state->non_striker_idx = int_val;
+        } else if (sscanf(line, "bowler_idx: %d", &int_val) == 1) {
+            state->bowler_idx = int_val;
+        } else if (sscanf(line, "max_overs: %d", &int_val) == 1) {
+            state->max_overs = int_val;
+        } else if (sscanf(line, "target: %d", &int_val) == 1) {
+            state->target = int_val;
+        } else if (sscanf(line, "rain_percentage: %f", &float_val) == 1) {
+            state->rain_percentage = float_val;
+        } else if (sscanf(line, "match_id: %99s", str_val) == 1) {
+            strcpy(state->match_id, str_val);
+        } else if (sscanf(line, "format: %d", &int_val) == 1) {
+            state->format = (MatchFormat)int_val;
+        } else if (sscanf(line, "inning_num: %d", &int_val) == 1) {
+            state->inning_num = int_val;
+        }
     }
 
     fclose(f);
@@ -411,9 +432,12 @@ bool load_game_state(GameState *state, const char *filename) {
     state->bowling_team = get_team_by_tag(state->bowling_team_tag);
 
     if (!state->batting_team || !state->bowling_team) {
-        fprintf(stderr, "Error: Could not re-link teams after loading game state.\n");
-        return false;
+        fprintf(stderr, "Error: Could not re-link teams after loading game state from tags '%s' and '%s'.\n", state->batting_team_tag, state->bowling_team_tag);
+        return false; // Cannot proceed
     }
+    
+    // Crucially, set the phase to start the loaded game
+    state->phase = PHASE_WELCOME;
 
     return true;
 }
@@ -425,7 +449,7 @@ int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, i
     char match_id[64];
     time_t t;
     srand((unsigned) time(&t)); // Initialize random seed for match ID
-    sprintf(match_id, "%s_VS_%s_%ld", teamA->tag, teamB->tag, time(NULL));
+    sprintf(match_id, "%s_VS_%s_%lld", teamA->tag, teamB->tag, time(NULL));
 
     // Initialize GameState for the entire match
     GameState match_state = { 0 };

@@ -94,6 +94,7 @@ typedef struct {
         MatchFormat format;
         int inning_num; // 1 for 1st innings, 2 for 2nd innings
 
+        GameplayPhase phase; // Current phase of the gameplay
     } GameState;
 
 // The new function to simulate a single ball

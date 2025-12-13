@@ -66,12 +66,13 @@ static void UpdateDrawLoginScreen(GuiState *state);
 static void UpdateDrawRegisterScreen(GuiState *state);
 static void UpdateDrawAdminMenuScreen(GuiState *state);
 static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState);
+static void InitializeAudience(void);
 static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, GameSounds *sounds);
 static void UpdateDrawUmpiresScreen(GuiState *state);
 static void UpdateDrawTeamsScreen(GuiState *state);
 static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title);
 static void UpdateDrawManageUsersScreen(GuiState *state);
-static void UpdateDrawMatchSetupScreen(GuiState *state, GameSounds *sounds);
+static void UpdateDrawMatchSetupScreen(GuiState *state);
 static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameSounds *sounds);
 static void DrawTextBold(const char *text, int posX, int posY, int fontSize, Color color);
 
@@ -91,8 +92,9 @@ int main(void)
     const int screenHeight = 720;
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
-    InitWindow(screenWidth, screenHeight, "Khelo Cricket");
+    InitWindow(screenWidth, screenHeight, "CricSim");
     InitAudioDevice();
+    InitializeAudience(); // Initial setup of audience positions
 
     // Load all game sounds
     GameSounds sounds = {
@@ -131,8 +133,11 @@ int main(void)
     SetTargetFPS(60);
 
     // Main game loop
-    while (!WindowShouldClose())
-    {
+        while (!WindowShouldClose()) {
+            if (IsWindowResized()) {
+                InitializeAudience();
+            }
+    
         switch(guiState.currentScreen) {
             case SCREEN_LOGIN:
                 UpdateDrawLoginScreen(&guiState);
@@ -166,7 +171,7 @@ int main(void)
                 UpdateDrawManageUsersScreen(&guiState);
                 break;
             case SCREEN_MATCH_SETUP:
-                UpdateDrawMatchSetupScreen(&guiState, &sounds);
+                UpdateDrawMatchSetupScreen(&guiState);
                 break;
             case SCREEN_WC_SETUP:
                 UpdateDrawWcSetupScreen(&guiState, &gameState, &sounds);
@@ -525,21 +530,35 @@ typedef struct {
     Color baseColor;
 } AudienceMember;
 
-// Enum for the different phases of gameplay animation
-typedef enum {
-    PHASE_IDLE,
-    PHASE_BOWLER_RUNUP,
-    PHASE_BALL_TRAVEL,
-    PHASE_BATSMAN_SWING,
-    PHASE_BALL_IN_FIELD,
-    PHASE_PLAY_ENDING,
-    PHASE_BOUNDARY_ANIMATION,
-    PHASE_BATSMAN_RUNNING,
-    PHASE_INNINGS_OVER,
-    PHASE_INNINGS_BREAK,
-    PHASE_MATCH_OVER
-} GameplayPhase;
+static AudienceMember audience[1500];
 
+
+
+
+
+
+// Function to initialize or re-initialize audience positions based on current screen size
+static void InitializeAudience() {
+    const int screenWidth = GetScreenWidth();
+    const int screenHeight = GetScreenHeight();
+    const Vector2 fieldCenter = { screenWidth / 2.0f, screenHeight / 2.0f + 50 };
+    const float boundaryRadius = screenWidth < screenHeight ? screenWidth * 0.35f : screenHeight * 0.35f;
+    const float standsRadius = boundaryRadius + 70; // Audience stands
+
+    for (int i = 0; i < 1500; i++) {
+        float angle = (float)rand() / (float)RAND_MAX * 360.0f;
+        float dist_variation = (float)rand() / (float)RAND_MAX * 60.0f;
+        float dist = standsRadius + dist_variation;
+        audience[i].position = (Vector2){ fieldCenter.x + cosf(angle) * dist, fieldCenter.y + sinf(angle) * dist };
+        
+        // Divide audience into two halves for each team
+        if (angle > 180) {
+            audience[i].baseColor = BLUE; // Team A supporters
+        } else {
+            audience[i].baseColor = RED; // Team B supporters
+        }
+    }
+}
 
 static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, GameSounds *sounds) {
     const Rectangle backButton = { GetScreenWidth() - 170, GetScreenHeight() - 60, 150, 40 };
@@ -642,10 +661,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     BeginDrawing();
     ClearBackground(DARKGRAY); // A darker background for a stadium feel
 
-    // --- Static state for audience ---
-    static AudienceMember audience[1500];
-    static bool audience_initialized = false;
-
+    
     // --- Draw Stadium Environment ---
     
     float boundaryRadius = fieldRadius + 15; // Boundary rope
@@ -654,22 +670,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     // Draw Stands
     DrawCircleV(fieldCenter, standsRadius, (Color){60, 60, 60, 255});
 
-    // Initialize audience positions and colors once
-    if (!audience_initialized) {
-        for (int i = 0; i < 1500; i++) {
-            float angle = (float)(rand() % 360) * DEG2RAD;
-            float dist = boundaryRadius + 10 + (rand() % 55);
-            audience[i].position = (Vector2){ fieldCenter.x + cosf(angle) * dist, fieldCenter.y + sinf(angle) * dist };
-            
-            // Divide audience into two halves for each team
-            if (angle > PI) {
-                audience[i].baseColor = BLUE; // Team A supporters
-            } else {
-                audience[i].baseColor = RED; // Team B supporters
-            }
-        }
-        audience_initialized = true;
-    }
+
 
     // Draw the audience
     bool is_celebrating = (GetTime() < celebration_end_time);
@@ -2184,7 +2185,7 @@ static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title) {
     EndDrawing();
 }
 
-static void UpdateDrawMatchSetupScreen(GuiState *state, GameSounds *sounds) {
+static void UpdateDrawMatchSetupScreen(GuiState *state) {
     const int screenWidth = GetScreenWidth();
     const int screenHeight = GetScreenHeight();
     const char *title = "Select Match Type";

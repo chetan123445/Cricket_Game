@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "raylib.h" // For Vector2 and other Raylib types
 
 // Enum for player types
 typedef enum {
@@ -30,5 +31,22 @@ typedef enum {
     FORMAT_ODI,
     FORMAT_TEST
 } MatchFormat;
+
+// Enum for the different phases of gameplay animation
+typedef enum {
+    PHASE_IDLE,
+    PHASE_WELCOME, // Initial phase after loading a match
+    PHASE_BOWLER_RUNUP,
+    PHASE_BALL_TRAVEL,
+    PHASE_BATSMAN_SWING,
+    PHASE_BALL_IN_FIELD,
+    PHASE_PLAY_ENDING,
+    PHASE_BOUNDARY_ANIMATION,
+    PHASE_BATSMAN_RUNNING,
+    PHASE_INNINGS_OVER,
+    PHASE_INNINGS_BREAK,
+    PHASE_MATCH_OVER
+} GameplayPhase;
+
 
 #endif // COMMON_H
