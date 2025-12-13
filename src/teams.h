@@ -6,6 +6,7 @@
 
 #define MAX_PLAYERS 22
 #define MAX_TEAM_NAME_LEN 64
+#define MAX_TEAM_TAG_LEN 10
 #define MAX_PLAYER_NAME_LEN 64
 
 // New Enums for detailed player attributes
@@ -57,6 +58,7 @@ typedef struct {
 // Structure to represent a team
 typedef struct {
     char name[MAX_TEAM_NAME_LEN];
+    char tag[10]; // Short tag for the team, e.g., "IND", "AUS"
     Player players[MAX_PLAYERS];
     int num_players;
     int captain_idx;
@@ -86,5 +88,7 @@ Player* load_global_players(int *num_players);
 
 void initialize_dummy_teams(Team *teamA, Team *teamB);
 
+// New function to retrieve a team by its tag
+Team* get_team_by_tag(const char *tag);
 
 #endif // TEAMS_H

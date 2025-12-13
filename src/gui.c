@@ -51,8 +51,8 @@ typedef struct {
 static void ChangeScreen(GuiState *state, GameScreen newScreen);
 static void UpdateDrawLoginScreen(GuiState *state);
 static void UpdateDrawRegisterScreen(GuiState *state);
-static void UpdateDrawMainMenuScreen(GuiState *state);
 static void UpdateDrawAdminMenuScreen(GuiState *state);
+static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState);
 static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState);
 static void UpdateDrawUmpiresScreen(GuiState *state);
 static void UpdateDrawTeamsScreen(GuiState *state);
@@ -60,6 +60,7 @@ static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title);
 static void UpdateDrawManageUsersScreen(GuiState *state);
 static void UpdateDrawMatchSetupScreen(GuiState *state);
 static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState);
+static void DrawTextBold(const char *text, int posX, int posY, int fontSize, Color color);
 
 // Helper for text boxes
 static void HandleTextBox(TextBox *box);
@@ -72,10 +73,10 @@ static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState,
 
 int main(void)
 {
-    // Set the window to be fullscreen on the primary monitor
-    SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    const int screenWidth = GetMonitorWidth(GetCurrentMonitor());
-    const int screenHeight = GetMonitorHeight(GetCurrentMonitor());
+    // Set a default window size and allow resizing
+    const int screenWidth = 1280;
+    const int screenHeight = 720;
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
     InitWindow(screenWidth, screenHeight, "Khelo Cricket");    
     
@@ -90,12 +91,15 @@ int main(void)
     gameState.max_overs = 50;
     gameState.fielding_setup = PP_AGGRESSIVE; // Initialize with default fielding
     gameState.gameplay_mode = GAMEPLAY_MODE_PLAYING; // Initialize gameplay mode
+    gameState.inning_num = 1;
 
     // GUI State Initialization
     GuiState guiState = { 0 };
     guiState.currentScreen = SCREEN_LOGIN;
     guiState.previousScreen = SCREEN_LOGIN; // Initialize previous screen
     guiState.userType = USER_TYPE_NONE;
+
+    create_saves_directory(); // Ensure the saves directory exists
 
     SetTargetFPS(60);
 
@@ -110,7 +114,7 @@ int main(void)
                 UpdateDrawRegisterScreen(&guiState);
                 break;
             case SCREEN_MAIN_MENU:
-                UpdateDrawMainMenuScreen(&guiState);
+                UpdateDrawMainMenuScreen(&guiState, &gameState);
                 break;
             case SCREEN_ADMIN_MENU:
                 UpdateDrawAdminMenuScreen(&guiState);
@@ -143,6 +147,10 @@ int main(void)
             default:
                 break;
         }
+    }
+
+    if (guiState.currentScreen == SCREEN_GAMEPLAY) {
+        save_game_state(&gameState, "Data/saves/resume.dat");
     }
 
     CloseWindow();
@@ -308,8 +316,9 @@ static void UpdateDrawAdminMenuScreen(GuiState *state) {
     EndDrawing();
 }
 
-static void UpdateDrawMainMenuScreen(GuiState *state) {
+static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState) {
     const int screenWidth = GetScreenWidth();
+    const Rectangle resumeGameButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 250, 400, 60 };
     const Rectangle playButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 180, 400, 60 };
     const Rectangle teamsButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 110, 400, 60 };
     const Rectangle umpiresButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 40, 400, 60 };
@@ -317,7 +326,13 @@ static void UpdateDrawMainMenuScreen(GuiState *state) {
     const Rectangle logoutButton = { screenWidth/2 - 200, GetScreenHeight()/2 + 100, 400, 60 };
 
     Vector2 mousePoint = GetMousePosition();
+    bool saveFileExists = FileExists("Data/saves/resume.dat");
 
+    if (saveFileExists && CheckCollisionPointRec(mousePoint, resumeGameButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (load_game_state(gameState, "Data/saves/resume.dat")) {
+            ChangeScreen(state, SCREEN_GAMEPLAY);
+        }
+    }
     if (CheckCollisionPointRec(mousePoint, playButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         ChangeScreen(state, SCREEN_MATCH_SETUP);
     }
@@ -340,7 +355,12 @@ static void UpdateDrawMainMenuScreen(GuiState *state) {
     ClearBackground(RAYWHITE);
     char title[128];
     sprintf(title, "Main Menu: %s", state->userName);
-    DrawText(title, screenWidth/2 - MeasureText(title, 50)/2, GetScreenHeight()/2 - 280, 50, DARKGRAY);
+    DrawText(title, screenWidth/2 - MeasureText(title, 50)/2, GetScreenHeight()/2 - 320, 50, DARKGRAY);
+
+    if (saveFileExists) {
+        DrawRectangleRec(resumeGameButton, LIGHTGRAY);
+        DrawText("Resume Game", resumeGameButton.x + resumeGameButton.width/2 - MeasureText("Resume Game", 20)/2, resumeGameButton.y + 15, 20, BLACK);
+    }
 
     DrawRectangleRec(playButton, LIGHTGRAY);
     DrawText("Play Match", playButton.x + playButton.width/2 - MeasureText("Play Match", 20)/2, playButton.y + 15, 20, BLACK);
@@ -415,7 +435,7 @@ static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState,
 
     // Draw the wicket-keeper behind the stumps (fixed position)
     // This assumes the keeper is NOT one of the NUM_FIELDERS in fielder_positions
-    Vector2 keeperPos = { fieldCenter.x + 220, fieldCenter.y };
+
 
 
     // Determine powerplay rules for fielder coloring
@@ -453,6 +473,11 @@ static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState,
 
         DrawPlayerFigure(fielderScreenPos, fielderColor, false, NULL, false);
     }
+    // Draw the wicket-keeper behind the stumps (fixed position, assuming striker at right end of pitch)
+    Vector2 keeperScreenPos = { fieldCenter.x + 190, fieldCenter.y };
+    if (keeper_player_list_idx != -1 && keeper_player_list_idx < gameState->bowling_team->num_players) {
+        DrawPlayerFigure(keeperScreenPos, ORANGE, false, gameState->bowling_team->players[keeper_player_list_idx].name, false);
+    }
 }
 
 // Structure to hold a single audience member's data
@@ -471,7 +496,9 @@ typedef enum {
     PHASE_PLAY_ENDING,
     PHASE_BOUNDARY_ANIMATION,
     PHASE_BATSMAN_RUNNING,
-    PHASE_INNINGS_OVER
+    PHASE_INNINGS_OVER,
+    PHASE_INNINGS_BREAK,
+    PHASE_MATCH_OVER
 } GameplayPhase;
 
 
@@ -480,6 +507,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
 
     if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         // Go back to the previous screen (likely the main menu)
+        save_game_state(gameState, "Data/saves/resume.dat");
         ChangeScreen(state, state->previousScreen);
     }
 
@@ -543,14 +571,15 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     static bool showRunButton = false;
     static float boundaryAnimTimer = 0.0f; // Timer for boundary animation
     static float fielderPauseTimer = 0.0f; // New timer for fielder's pause
-    static int runsThisBall = 0;
-    static BallOutcome currentBallOutcome;
-    static Vector2 strikerAnimPos, nonStrikerAnimPos;
-    static float runAnimTimer = 0.0f;
+            static int runsThisBall = 0;
+            static Vector2 strikerAnimPos, nonStrikerAnimPos;    static float runAnimTimer = 0.0f;
     static Vector2 fielderRunPos;
     static int nearestFielderIndex = -1;
     static int dragging_fielder_idx = -1; // Index of the fielder being dragged (-1 if none)
     static Vector2 drag_offset; // Offset from fielder's center to mouse position when dragging started
+    static double playMissMessageEndTime = 0.0; // For "Play and Miss!" message
+    static char outcomeMessage[32] = {0};
+    static double outcomeMessageEndTime = 0.0;
 
     bool isGameOver = (gameState->overs_completed >= gameState->max_overs || gameState->wickets >= 10);
 
@@ -681,22 +710,112 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
         int timing = (rand() % 41) - 20; // -20 (very poor) to +20 (perfect)
         int final_shot_quality = skill_diff + timing;
 
+        // 2. Introduce "Play and Miss" dot ball chance
+        // A "play and miss" means no runs and no wicket, just a dot ball.
+        int play_and_miss_chance = 60 - (striker->batting_skill - bowler->bowling_skill) / 3;
+        if (play_and_miss_chance < 5) play_and_miss_chance = 5; // Minimum 5% chance
+        if (play_and_miss_chance > 60) play_and_miss_chance = 60; // Maximum 60% chance
+
+        if (rand() % 100 < play_and_miss_chance) {
+            // It's a play and miss dot ball
+            runsThisBall = 0;
+            // Inlined ball update logic
+            gameState->balls_bowled_in_over++;
+            if (gameState->balls_bowled_in_over >= 6) {
+                gameState->overs_completed++;
+                gameState->balls_bowled_in_over = 0;
+                // Rotate strike at end of over
+                int temp = gameState->striker_idx;
+                gameState->striker_idx = gameState->non_striker_idx;
+                gameState->non_striker_idx = temp;
+
+                // Select a new bowler - get current bowler's index
+                Player *current_bowler_player = &gameState->bowling_team->players[gameState->bowler_idx]; // Get current bowler
+                int current_bowler_p_idx = -1;
+                for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                    if(&gameState->bowling_team->players[i] == current_bowler_player) {
+                        current_bowler_p_idx = i;
+                        break;
+                    }
+                }
+                // Find the next bowler
+                Player *new_bowler = get_bowler(gameState->bowling_team, current_bowler_p_idx);
+                // Update bowler_idx in GameState
+                for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                     if(&gameState->bowling_team->players[i] == new_bowler) {
+                        gameState->bowler_idx = i;
+                        break;
+                    }
+                }
+            }
+            // Log ball data for play and miss dot
+            log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
+                          striker, bowler, 0, OUTCOME_DOT, NULL, NULL);
+
+            playMissMessageEndTime = GetTime() + 1.5; // Show message for 1.5 seconds
+            currentPhase = PHASE_IDLE; // Reset for the next ball
+            animTimer = 0.0f;
+            return; // Exit, as this ball is completed.
+        }
         // 2. Wicket chance on poor timing/skill
         if (final_shot_quality < -25) {
-            currentBallOutcome.type = OUTCOME_WICKET;
             gameState->wickets++;
             bowler->total_wickets++;
+            strcpy(outcomeMessage, "WICKET!");
+            outcomeMessageEndTime = GetTime() + 2.0;
             // Move to next batsman
             gameState->striker_idx = (gameState->striker_idx > gameState->non_striker_idx) ? gameState->striker_idx + 1 : gameState->non_striker_idx + 1;
+
+            // Determine dismissal method (50/50 for now)
+            const char *dismissal_type;
+            Player *dismissal_fielder = NULL;
+            if (rand() % 2 == 0) {
+                dismissal_type = "Bowled";
+            } else {
+                dismissal_type = "Caught (Simulated)";
+            }
+
+            // Inlined ball update logic
+            gameState->balls_bowled_in_over++;
+            if (gameState->balls_bowled_in_over >= 6) {
+                gameState->overs_completed++;
+                gameState->balls_bowled_in_over = 0;
+                // Rotate strike at end of over
+                int temp = gameState->striker_idx;
+                gameState->striker_idx = gameState->non_striker_idx;
+                gameState->non_striker_idx = temp;
+
+                // Select a new bowler - get current bowler's index
+                int current_bowler_p_idx = -1;
+                for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                    if(&gameState->bowling_team->players[i] == bowler) {
+                        current_bowler_p_idx = i;
+                        break;
+                    }
+                }
+                // Find the next bowler
+                Player *new_bowler = get_bowler(gameState->bowling_team, current_bowler_p_idx);
+                // Update bowler_idx in GameState
+                for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                     if(&gameState->bowling_team->players[i] == new_bowler) {
+                        gameState->bowler_idx = i;
+                        break;
+                    }
+                }
+            }
+            // Log ball data
+            log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
+                          striker, bowler, 0, OUTCOME_WICKET, dismissal_type, dismissal_fielder);
+
             currentPhase = PHASE_IDLE; // Back to idle if out
         } else {
             // 3. Determine shot placement
             float angle = (float)(GetRandomValue(-135, 135)) * DEG2RAD;
             // Distance is based on shot quality
             // Adjusted dist_multiplier for realism and reduced 6s frequency
-            float dist_multiplier = 0.3f + (float)(final_shot_quality + 30) / 80.0f; // Range roughly 0.36 to 0.925
+            float dist_multiplier = 0.3f + (float)(final_shot_quality + 30) / 100.0f; // Range roughly 0.36 to 0.8
             float dist = (fieldRadius * 0.8f) * dist_multiplier;
-            dist += (rand() % (int)(fieldRadius * 0.1f)); // Reduced random boost
+            dist += (rand() % (int)(fieldRadius * 0.05f)); // Reduced random boost
 
             ballTargetPos = (Vector2){ fieldCenter.x + cosf(angle) * dist, fieldCenter.y + sinf(angle) * dist };
             ballPos = strikerEnd;
@@ -705,10 +824,14 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
 
             // 4. Check for Boundary
             if (Vector2Distance(fieldCenter, ballTargetPos) > boundaryRadius) {
-                if (dist > boundaryRadius + 30) { // Made it harder for a direct hit for 6
+                if (dist > boundaryRadius + 60) { // Increased difficulty for a direct hit for 6
                     runsThisBall = 6;
+                    strcpy(outcomeMessage, "SIX!");
+                    outcomeMessageEndTime = GetTime() + 2.0;
                 } else { // Bounces to boundary for 4
                     runsThisBall = 4;
+                    strcpy(outcomeMessage, "FOUR!");
+                    outcomeMessageEndTime = GetTime() + 2.0;
                 }
                 gameState->total_runs += runsThisBall;
                 striker->total_runs += runsThisBall;
@@ -740,13 +863,49 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                 float effective_distance = nearestDist - (fielding_skill / 10.0f); // Good fielders cover more ground
 
                 if (effective_distance < 15.0f && final_shot_quality < 0) { // CATCH
-                    currentBallOutcome.type = OUTCOME_WICKET;
+
                     gameState->wickets++;
                     bowler->total_wickets++;
+                    strcpy(outcomeMessage, "WICKET!");
+                    outcomeMessageEndTime = GetTime() + 2.0;
                     gameState->striker_idx = (gameState->striker_idx > gameState->non_striker_idx) ? gameState->striker_idx + 1 : gameState->non_striker_idx + 1;
-                    currentPhase = PHASE_IDLE;
-                } else if (effective_distance < 35.0f) { // Stopped well, maybe a single
-                    showRunButton = true;
+                    
+                    // Inlined ball update logic
+                    gameState->balls_bowled_in_over++;
+                    if (gameState->balls_bowled_in_over >= 6) {
+                        gameState->overs_completed++;
+                        gameState->balls_bowled_in_over = 0;
+                        // Rotate strike at end of over
+                        int temp = gameState->striker_idx;
+                        gameState->striker_idx = gameState->non_striker_idx;
+                        gameState->non_striker_idx = temp;
+
+                        // Select a new bowler - get current bowler's index
+                        int current_bowler_p_idx = -1;
+                        for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                            if(&gameState->bowling_team->players[i] == bowler) {
+                                current_bowler_p_idx = i;
+                                break;
+                            }
+                        }
+                        // Find the next bowler
+                        Player *new_bowler = get_bowler(gameState->bowling_team, current_bowler_p_idx);
+                        // Update bowler_idx in GameState
+                        for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                             if(&gameState->bowling_team->players[i] == new_bowler) {
+                                gameState->bowler_idx = i;
+                                break;
+                            }
+                        }
+                    }
+                    // Log ball data for catch
+                    // Check nearestFielderIndex validity
+                    Player *fielder_out = NULL;
+                    if (nearestFielderIndex >= 0 && nearestFielderIndex < gameState->bowling_team->num_players) {
+                        fielder_out = &gameState->bowling_team->players[nearestFielderIndex];
+                    }
+                                        log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
+                                                      striker, bowler, 0, OUTCOME_WICKET, "Caught", fielder_out);                    showRunButton = true;
                     // The ball will be stopped quickly, limiting runs. This is handled by the fielder reaching the ball.
                 } else { // In a gap
                     showRunButton = true;
@@ -777,14 +936,93 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                     }
 
                     if (GetTime() - fielderPauseTimer >= 1.0f) { // After 1 second pause
+                        if (runsThisBall > 0) {
+                            sprintf(outcomeMessage, "%d RUN%s", runsThisBall, (runsThisBall > 1) ? "S" : "");
+                            outcomeMessageEndTime = GetTime() + 2.0;
+                        }
+                        // Inlined ball update logic
+                        gameState->balls_bowled_in_over++;
+                        if (gameState->balls_bowled_in_over >= 6) {
+                            gameState->overs_completed++;
+                            gameState->balls_bowled_in_over = 0;
+                            // Rotate strike at end of over
+                            int temp = gameState->striker_idx;
+                            gameState->striker_idx = gameState->non_striker_idx;
+                            gameState->non_striker_idx = temp;
+
+                            // Select a new bowler - get current bowler's index
+                            Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx]; // Get current bowler
+                            int current_bowler_p_idx = -1;
+                            for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                                if(&gameState->bowling_team->players[i] == bowler) {
+                                    current_bowler_p_idx = i;
+                                    break;
+                                }
+                            }
+                            // Find the next bowler
+                            Player *new_bowler = get_bowler(gameState->bowling_team, current_bowler_p_idx);
+                            // Update bowler_idx in GameState
+                            for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                                 if(&gameState->bowling_team->players[i] == new_bowler) {
+                                    gameState->bowler_idx = i;
+                                    break;
+                                }
+                            }
+                        }
+                        // Log ball data for fielded ball
+                        log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
+                                      &gameState->batting_team->players[gameState->striker_idx], // Striker
+                                      &gameState->bowling_team->players[gameState->bowler_idx], // Bowler
+                                      runsThisBall, (runsThisBall > 0) ? OUTCOME_RUNS : OUTCOME_DOT, NULL, NULL);
+
                         currentPhase = PHASE_IDLE; // Reset for the next ball
                     }
                 }
             }
             break;
         case PHASE_BOUNDARY_ANIMATION:
+            // Animate ball to the boundary
+            if (Vector2Distance(ballPos, ballTargetPos) > 5.0f) {
+                ballPos = Vector2Lerp(ballPos, ballTargetPos, GetFrameTime() * 3.0f);
+            }
+
             boundaryAnimTimer += GetFrameTime();
-            if (boundaryAnimTimer >= 1.0f) { // After 1 second of boundary animation
+            if (boundaryAnimTimer >= 1.5f) { // After 1.5 seconds of boundary animation
+                // Inlined ball update logic
+                gameState->balls_bowled_in_over++;
+                if (gameState->balls_bowled_in_over >= 6) {
+                    gameState->overs_completed++;
+                    gameState->balls_bowled_in_over = 0;
+                    // Rotate strike at end of over
+                    int temp = gameState->striker_idx;
+                    gameState->striker_idx = gameState->non_striker_idx;
+                    gameState->non_striker_idx = temp;
+
+                    // Select a new bowler - get current bowler's index
+                    Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx]; // Get current bowler
+                    int current_bowler_p_idx = -1;
+                    for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                        if(&gameState->bowling_team->players[i] == bowler) {
+                            current_bowler_p_idx = i;
+                            break;
+                        }
+                    }
+                    // Find the next bowler
+                    Player *new_bowler = get_bowler(gameState->bowling_team, current_bowler_p_idx);
+                    // Update bowler_idx in GameState
+                    for(int i=0; i<gameState->bowling_team->num_players; ++i) {
+                         if(&gameState->bowling_team->players[i] == new_bowler) {
+                            gameState->bowler_idx = i;
+                            break;
+                        }
+                    }
+                }
+                // Log ball data for boundary
+                log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
+                              &gameState->batting_team->players[gameState->striker_idx], // Striker
+                              &gameState->bowling_team->players[gameState->bowler_idx], // Bowler
+                              runsThisBall, OUTCOME_RUNS, NULL, NULL);
+
                 currentPhase = PHASE_IDLE; // Allow next ball
                 boundaryAnimTimer = 0.0f;
             }
@@ -803,6 +1041,37 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
             if (runAnimTimer >= 1.2f) {
                 currentPhase = PHASE_BALL_IN_FIELD; // Go back to fielding phase to allow another run
             }
+            break;
+        case PHASE_INNINGS_BREAK:
+            if (IsKeyPressed(KEY_SPACE)) {
+                // Set up for 2nd innings
+                gameState->inning_num = 2;
+                gameState->target = gameState->total_runs + 1;
+                
+                // Swap teams
+                Team *temp_team = gameState->batting_team;
+                gameState->batting_team = gameState->bowling_team;
+                gameState->bowling_team = temp_team;
+
+                char temp_tag[MAX_TEAM_TAG_LEN];
+                strcpy(temp_tag, gameState->batting_team_tag);
+                strcpy(gameState->batting_team_tag, gameState->bowling_team_tag);
+                strcpy(gameState->bowling_team_tag, temp_tag);
+
+                // Reset state
+                gameState->total_runs = 0;
+                gameState->wickets = 0;
+                gameState->overs_completed = 0;
+                gameState->balls_bowled_in_over = 0;
+                gameState->striker_idx = 0;
+                gameState->non_striker_idx = 1;
+                gameState->bowler_idx = -1; // Will be selected before first ball
+
+                currentPhase = PHASE_IDLE;
+            }
+            break;
+        case PHASE_MATCH_OVER:
+            // Match is finished, do nothing until user exits
             break;
         default: // PHASE_IDLE or PHASE_INNINGS_OVER
             bowlerAnimPos = bowlerDefaultPos;
@@ -944,7 +1213,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     
     // Draw ball
     // The ball is only drawn when it's actually in play (traveling or in field)
-    if (currentPhase == PHASE_BALL_TRAVEL || currentPhase == PHASE_BALL_IN_FIELD || currentPhase == PHASE_BATSMAN_RUNNING) DrawCircleV(ballPos, 5, WHITE);
+    if (currentPhase == PHASE_BALL_TRAVEL || currentPhase == PHASE_BALL_IN_FIELD || currentPhase == PHASE_BATSMAN_RUNNING || currentPhase == PHASE_BOUNDARY_ANIMATION) DrawCircleV(ballPos, 5, WHITE);
 
     // --- Draw Scoreboard on top ---
     char scoreText[100];
@@ -953,7 +1222,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
 
     char oversText[100];
     sprintf(oversText, "Overs: %d.%d / %d", gameState->overs_completed, gameState->balls_bowled_in_over, gameState->max_overs);
-    DrawText(oversText, 20, 70, 20, GRAY);
+    DrawTextBold(oversText, 20, 70, 20, GRAY);
     
     // --- Bottom HUD ---
     char totalScoreText[128];
@@ -962,17 +1231,51 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     } else {
         sprintf(totalScoreText, "Score: %d/%d", gameState->total_runs, gameState->wickets);
     }
-    DrawText(totalScoreText, 20, GetScreenHeight() - 40, 30, WHITE);
+    DrawTextBold(totalScoreText, 20, GetScreenHeight() - 40, 30, WHITE);
 
     if (currentPhase == PHASE_IDLE && !isGameOver) {
         DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 70, 20, YELLOW);
     } else if (isGameOver) {
-        DrawText("INNINGS FINISHED", GetScreenWidth()/2 - MeasureText("INNINGS FINISHED", 50)/2, GetScreenHeight()/2, 50, RED);
+        if (gameState->inning_num == 1) {
+            currentPhase = PHASE_INNINGS_BREAK;
+        } else {
+            currentPhase = PHASE_MATCH_OVER;
+        }
     }
 
+    // ... (rest of the drawing logic for players, etc.)
+
+    // --- Draw Final Match/Innings Status ---
+    if (currentPhase == PHASE_INNINGS_BREAK) {
+        DrawText("INNINGS BREAK", GetScreenWidth()/2 - MeasureText("INNINGS BREAK", 40)/2, GetScreenHeight()/2 - 40, 40, YELLOW);
+        char targetText[64];
+        sprintf(targetText, "Target: %d", gameState->target);
+        DrawText(targetText, GetScreenWidth()/2 - MeasureText(targetText, 30)/2, GetScreenHeight()/2 + 10, 30, RAYWHITE);
+        DrawText("Press [SPACE] to start 2nd Innings", GetScreenWidth()/2 - MeasureText("Press [SPACE] to start 2nd Innings", 20)/2, GetScreenHeight()/2 + 50, 20, RAYWHITE);
+    } else if (currentPhase == PHASE_MATCH_OVER) {
+        char winnerText[128];
+        if (gameState->total_runs >= gameState->target) {
+            sprintf(winnerText, "%s won by %d wickets!", gameState->batting_team->name, 10 - gameState->wickets);
+        } else if (gameState->total_runs == gameState->target - 1) {
+            sprintf(winnerText, "Match Tied!");
+        } else {
+            sprintf(winnerText, "%s won by %d runs!", gameState->bowling_team->name, gameState->target - gameState->total_runs -1);
+        }
+        DrawText("MATCH OVER", GetScreenWidth()/2 - MeasureText("MATCH OVER", 50)/2, GetScreenHeight()/2 - 40, 50, GREEN);
+        DrawText(winnerText, GetScreenWidth()/2 - MeasureText(winnerText, 30)/2, GetScreenHeight()/2 + 20, 30, RAYWHITE);
+    }
+    
     // Draw the back button
     DrawRectangleRec(backButton, LIGHTGRAY);
     DrawText("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, BLACK);
+
+    // Draw "Play and Miss!" message if active
+    if (GetTime() < playMissMessageEndTime) {
+        DrawText("Play and Miss!", GetScreenWidth()/2 - MeasureText("Play and Miss!", 40)/2, GetScreenHeight()/2, 40, ORANGE);
+    }
+    if (GetTime() < outcomeMessageEndTime) {
+        DrawText(outcomeMessage, GetScreenWidth()/2 - MeasureText(outcomeMessage, 40)/2, GetScreenHeight()/2, 40, ORANGE);
+    }
     EndDrawing();
 }
 
@@ -1905,7 +2208,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
     // State for pre-match setup
     static time_t tournament_start_date;
     static float rain_percentage = 0.0f;
-    static int pitch_condition = 0; // 0: Dry, 1: Hard, 2: Grass
+
 
     // State for Toss
     static bool toss_in_progress = false;

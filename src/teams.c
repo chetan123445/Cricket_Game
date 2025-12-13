@@ -134,6 +134,15 @@ Team* load_teams(int *num_teams) {
             teams[i].vice_captain_idx = -1;
         }
         
+        // Read the new tag field
+        token = strtok(NULL, ",");
+        if (token != NULL) {
+            strncpy(teams[i].tag, token, sizeof(teams[i].tag) - 1);
+            teams[i].tag[sizeof(teams[i].tag) - 1] = '\0';
+        } else {
+            teams[i].tag[0] = '\0'; // Default empty tag if not present
+        }
+
         teams[i].num_players = 0;
         teams[i].captain_idx = -1;
         teams[i].vice_captain_idx = -1;
@@ -201,7 +210,7 @@ void save_teams(const Team *teams, int num_teams) {
     }
 
     for (int i = 0; i < num_teams; i++) {
-        fprintf(f, "%s,%d,%d,%d,%d\n", teams[i].name, teams[i].is_deleted, teams[i].is_hidden, teams[i].captain_idx, teams[i].vice_captain_idx);
+        fprintf(f, "%s,%d,%d,%d,%d,%s\n", teams[i].name, teams[i].is_deleted, teams[i].is_hidden, teams[i].captain_idx, teams[i].vice_captain_idx, teams[i].tag);
         for (int j = 0; j < teams[i].num_players; j++) {
             const Player *p = &teams[i].players[j];
             // New comprehensive fprintf for all player fields
@@ -231,6 +240,14 @@ static void add_team_interactive(Team **teams, int *num_teams)
     Team *new_team = &(*teams)[*num_teams];
     strncpy(new_team->name, tname, MAX_TEAM_NAME_LEN - 1);
     new_team->name[MAX_TEAM_NAME_LEN - 1] = '\0';
+    
+    char ttag[10];
+    printf("Enter unique 3-char team tag (e.g., IND, AUS): ");
+    if (!fgets(ttag, sizeof(ttag), stdin)) { /* handle error */ }
+    ttag[strcspn(ttag, "\r\n")] = 0;
+    strncpy(new_team->tag, ttag, sizeof(new_team->tag) - 1);
+    new_team->tag[sizeof(new_team->tag) - 1] = '\0';
+
     new_team->num_players = 0;
     new_team->captain_idx = -1;
     new_team->vice_captain_idx = -1;
@@ -310,7 +327,7 @@ static void list_teams(const Team *teams, int num_teams)
     }
     printf("Teams:\n");
     for (int i = 0; i < num_teams; i++) {
-        printf(" - %s (%d players)\n", teams[i].name, teams[i].num_players);
+        printf(" - %s (%d players) - Tag: %s\n", teams[i].name, teams[i].num_players, teams[i].tag);
     }
 }
 
@@ -333,6 +350,7 @@ void show_player_stats(const Team *team) {
 
 void initialize_dummy_teams(Team *teamA, Team *teamB) {
     strcpy(teamA->name, "Lions");
+    strcpy(teamA->tag, "LIO");
     teamA->num_players = 11;
     for (int i = 0; i < teamA->num_players; i++) {
         sprintf(teamA->players[i].name, "Lion %d", i + 1);
@@ -347,6 +365,7 @@ void initialize_dummy_teams(Team *teamA, Team *teamB) {
     }
 
     strcpy(teamB->name, "Tigers");
+    strcpy(teamB->tag, "TIG");
     teamB->num_players = 11;
     for (int i = 0; i < teamB->num_players; i++) {
         sprintf(teamB->players[i].name, "Tiger %d", i + 1);
@@ -442,6 +461,35 @@ void save_umpires(const Umpire *umpires, int num_umpires) {
 
     fclose(f);
 }
+
+Team* get_team_by_tag(const char *tag) {
+    int num_teams = 0;
+    Team *all_teams = load_teams(&num_teams); // Load all teams
+
+    if (!all_teams) {
+        return NULL; // No teams loaded
+    }
+
+    // Search for the team by tag
+    for (int i = 0; i < num_teams; i++) {
+        if (strcmp(all_teams[i].tag, tag) == 0) {
+            // Found the team. Create a copy and return it, then free all_teams.
+            // This is important because all_teams is dynamically allocated and
+            // get_team_by_tag should not return a pointer to an element within it
+            // as all_teams will be freed.
+            Team *found_team = (Team*)malloc(sizeof(Team));
+            if (found_team) {
+                memcpy(found_team, &all_teams[i], sizeof(Team));
+            }
+            free(all_teams); // Free the temporary array
+            return found_team;
+        }
+    }
+
+    free(all_teams); // Free the temporary array if no team is found
+    return NULL; // Team not found
+}
+
 
 void teams_menu(const char *user_email)
 {

@@ -41,16 +41,29 @@ BallOutcome simulate_one_ball(GameState *state) {
     if (run_chance > 90) run_chance = 90;
 
     int r = rand() % 100;
-    if (r < run_chance) {
-        // It's a scoring shot
-        outcome.type = OUTCOME_RUNS;
-        // The actual number of runs is now decided by the player in the GUI.
-        // We can still simulate a "potential" run value to guide where the ball goes.
-        // For now, we just signal that runs are possible.
-        outcome.runs = 1; // Signifies a hit, not the actual run count.
-        
+
+    // New: Chance for a "no contact" dot ball
+    int no_contact_chance = 20 + (bowl_skill - bat_skill) / 4; // Base 20%, adjusted by skill difference
+    if (no_contact_chance < 5) no_contact_chance = 5;   // Minimum 5% chance
+    if (no_contact_chance > 50) no_contact_chance = 50; // Maximum 50% chance
+
+    if (r < no_contact_chance) {
+        // Explicit "no contact" dot ball
+        outcome.type = OUTCOME_DOT;
+        outcome.runs = 0;
     } else {
-        // It's a chance for a wicket
+        // Original logic: It's either a scoring shot or a chance for a wicket
+        r = rand() % 100; // Re-roll for the next set of probabilities
+        if (r < run_chance) {
+            // It's a scoring shot
+            outcome.type = OUTCOME_RUNS;
+            // The actual number of runs is now decided by the player in the GUI.
+            // We can still simulate a "potential" run value to guide where the ball goes.
+            // For now, we just signal that runs are possible.
+            outcome.runs = 1; // Signifies a hit, not the actual run count.
+            
+        } else {
+            // It's a chance for a wicket
         int out_chance = 50 + (bowl_skill - bat_skill) / 4;
         if (out_chance < 10) out_chance = 10;
         if (out_chance > 90) out_chance = 90;
