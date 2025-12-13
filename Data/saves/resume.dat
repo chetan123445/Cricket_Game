@@ -1,9 +1,9 @@
 batting_team_tag: 
 bowling_team_tag: 
-total_runs: 24
+total_runs: 14
 wickets: 0
 overs_completed: 2
-balls_bowled_in_over: 0
+balls_bowled_in_over: 5
 current_powerplay: 0
 striker_idx: 0
 non_striker_idx: 0

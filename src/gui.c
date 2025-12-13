@@ -47,19 +47,32 @@ typedef struct {
     char userName[64];
 } GuiState;
 
+// Structure to hold all game sounds
+typedef struct {
+    Sound bowling;
+    Sound dot_ball;
+    Sound edge;
+    Sound firecrackers;
+    Sound four;
+    Sound single;
+    Sound six;
+    Sound toss;
+    Sound bowled_wicket;
+} GameSounds;
+
 // Forward declarations for screen functions
 static void ChangeScreen(GuiState *state, GameScreen newScreen);
 static void UpdateDrawLoginScreen(GuiState *state);
 static void UpdateDrawRegisterScreen(GuiState *state);
 static void UpdateDrawAdminMenuScreen(GuiState *state);
 static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState);
-static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState);
+static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, GameSounds *sounds);
 static void UpdateDrawUmpiresScreen(GuiState *state);
 static void UpdateDrawTeamsScreen(GuiState *state);
 static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title);
 static void UpdateDrawManageUsersScreen(GuiState *state);
-static void UpdateDrawMatchSetupScreen(GuiState *state);
-static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState);
+static void UpdateDrawMatchSetupScreen(GuiState *state, GameSounds *sounds);
+static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameSounds *sounds);
 static void DrawTextBold(const char *text, int posX, int posY, int fontSize, Color color);
 
 // Helper for text boxes
@@ -78,7 +91,21 @@ int main(void)
     const int screenHeight = 720;
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
-    InitWindow(screenWidth, screenHeight, "Khelo Cricket");    
+    InitWindow(screenWidth, screenHeight, "Khelo Cricket");
+    InitAudioDevice();
+
+    // Load all game sounds
+    GameSounds sounds = {
+        .bowling = LoadSound("audio/bowling.mp3"),
+        .dot_ball = LoadSound("audio/dotball.mp3"),
+        .edge = LoadSound("audio/edge.mp3"),
+        .firecrackers = LoadSound("audio/firecrackers.mp3"),
+        .four = LoadSound("audio/four_and_singles.mp3"),
+        .single = LoadSound("audio/single_yes_call.mp3"),
+        .six = LoadSound("audio/six.mp3"),
+        .toss = LoadSound("audio/toss.mp3"),
+        .bowled_wicket = LoadSound("audio/bowled_wicket.mp3")
+    };
     
     // Match Game State Initialization
     GameState gameState = { 0 };
@@ -121,7 +148,7 @@ int main(void)
                 break;
             case SCREEN_GAMEPLAY:
                 // We pass the gameState to the gameplay screen to be updated
-                UpdateDrawGameplayScreen(&guiState, &gameState);
+                UpdateDrawGameplayScreen(&guiState, &gameState, &sounds);
                 break;
             case SCREEN_TEAMS:
                 UpdateDrawTeamsScreen(&guiState);
@@ -139,10 +166,10 @@ int main(void)
                 UpdateDrawManageUsersScreen(&guiState);
                 break;
             case SCREEN_MATCH_SETUP:
-                UpdateDrawMatchSetupScreen(&guiState);
+                UpdateDrawMatchSetupScreen(&guiState, &sounds);
                 break;
             case SCREEN_WC_SETUP:
-                UpdateDrawWcSetupScreen(&guiState, &gameState);
+                UpdateDrawWcSetupScreen(&guiState, &gameState, &sounds);
                 break;
             default:
                 break;
@@ -153,6 +180,18 @@ int main(void)
         save_game_state(&gameState, "Data/saves/resume.dat");
     }
 
+    // Unload all sounds
+    UnloadSound(sounds.bowling);
+    UnloadSound(sounds.dot_ball);
+    UnloadSound(sounds.edge);
+    UnloadSound(sounds.firecrackers);
+    UnloadSound(sounds.four);
+    UnloadSound(sounds.single);
+    UnloadSound(sounds.six);
+    UnloadSound(sounds.toss);
+    UnloadSound(sounds.bowled_wicket);
+
+    CloseAudioDevice();
     CloseWindow();
 
     return 0;
@@ -502,7 +541,7 @@ typedef enum {
 } GameplayPhase;
 
 
-static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
+static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, GameSounds *sounds) {
     const Rectangle backButton = { GetScreenWidth() - 170, GetScreenHeight() - 60, 150, 40 };
 
     if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -582,11 +621,13 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
     static double outcomeMessageEndTime = 0.0;
     static float ballAltitude = 0.0f;
     static float ballVelocityY = 0.0f;
+    static bool match_over_sound_played = false;
 
     bool isGameOver = (gameState->overs_completed >= gameState->max_overs || gameState->wickets >= 10);
 
     if (currentPhase == PHASE_IDLE && !isGameOver && IsKeyPressed(KEY_SPACE)) {
         currentPhase = PHASE_BOWLER_RUNUP;
+        PlaySound(sounds->bowling);
         bowlerAnimPos = (Vector2){ GetScreenWidth() / 2.0f - 250, GetScreenHeight() / 2.0f }; // Start of run-up
         animTimer = 0.0f;
         showRunButton = false;
@@ -755,6 +796,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                           striker, bowler, 0, OUTCOME_DOT, NULL, NULL);
 
             playMissMessageEndTime = GetTime() + 1.5; // Show message for 1.5 seconds
+            PlaySound(sounds->dot_ball);
             currentPhase = PHASE_IDLE; // Reset for the next ball
             animTimer = 0.0f;
             return; // Exit, as this ball is completed.
@@ -773,8 +815,10 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
             Player *dismissal_fielder = NULL;
             if (rand() % 2 == 0) {
                 dismissal_type = "Bowled";
+                PlaySound(sounds->bowled_wicket);
             } else {
                 dismissal_type = "Caught (Simulated)";
+                PlaySound(sounds->edge);
             }
 
             // Inlined ball update logic
@@ -832,12 +876,14 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                     outcomeMessageEndTime = GetTime() + 2.0;
                     ballAltitude = 0.0f;
                     ballVelocityY = 150.0f;
+                    PlaySound(sounds->six);
                 } else { // Bounces to boundary for 4
                     runsThisBall = 4;
                     strcpy(outcomeMessage, "FOUR!");
                     outcomeMessageEndTime = GetTime() + 2.0;
                     ballAltitude = 0.0f;
                     ballVelocityY = 80.0f;
+                    PlaySound(sounds->four);
                 }
                 gameState->total_runs += runsThisBall;
                 striker->total_runs += runsThisBall;
@@ -874,6 +920,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
                     bowler->total_wickets++;
                     strcpy(outcomeMessage, "WICKET!");
                     outcomeMessageEndTime = GetTime() + 2.0;
+                    PlaySound(sounds->edge);
                     gameState->striker_idx = (gameState->striker_idx > gameState->non_striker_idx) ? gameState->striker_idx + 1 : gameState->non_striker_idx + 1;
                     
                     // Inlined ball update logic
@@ -1094,12 +1141,17 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
             }
             break;
         case PHASE_MATCH_OVER:
+            if (!match_over_sound_played) {
+                PlaySound(sounds->firecrackers);
+                match_over_sound_played = true;
+            }
             // Match is finished, do nothing until user exits
             break;
         default: // PHASE_IDLE or PHASE_INNINGS_OVER
             bowlerAnimPos = bowlerDefaultPos;
             strikerAnimPos = strikerEnd;
             nonStrikerAnimPos = nonStrikerEnd;
+            match_over_sound_played = false; // Reset for next match
             break;
     }
 
@@ -1111,6 +1163,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState) {
         if (CheckCollisionPointRec(GetMousePosition(), runButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             runsThisBall++;
             gameState->total_runs++; // This should be here
+            PlaySound(sounds->single);
             // Trigger the running animation
             currentPhase = PHASE_BATSMAN_RUNNING;
             runAnimTimer = 0.0f;
@@ -2131,7 +2184,7 @@ static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title) {
     EndDrawing();
 }
 
-static void UpdateDrawMatchSetupScreen(GuiState *state) {
+static void UpdateDrawMatchSetupScreen(GuiState *state, GameSounds *sounds) {
     const int screenWidth = GetScreenWidth();
     const int screenHeight = GetScreenHeight();
     const char *title = "Select Match Type";
@@ -2223,7 +2276,7 @@ typedef enum {
     WC_STEP_PRE_MATCH
 } WorldCupSetupStep;
 
-static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
+static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameSounds *sounds) {
     // --- Screen State ---
     static WorldCupSetupStep currentStep = WC_STEP_TEAM_SELECTION;
     static Team* all_teams = NULL;
@@ -2286,6 +2339,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
     }
 
     if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (IsSoundPlaying(sounds->toss)) StopSound(sounds->toss);
         ChangeScreen(state, SCREEN_MATCH_SETUP);
         needs_refresh = true; // Force a full refresh next time we enter this screen
     }
@@ -2520,6 +2574,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                 DrawCircle(GetScreenWidth() / 2, GetScreenHeight() / 2, 100, GOLD);
                 DrawTextPro(GetFontDefault(), "H", (Vector2){GetScreenWidth()/2, GetScreenHeight()/2}, (Vector2){50,50}, toss_rotation, 100, 10, BLACK);
             } else if (toss_call == -1) { // Ask for user's call
+                if (!IsSoundPlaying(sounds->toss)) PlaySound(sounds->toss);
                 // --- Draw the captains and umpire before the toss ---
                 Vector2 captainAPos = { GetScreenWidth()/2 - 200, GetScreenHeight()/2 };
                 Vector2 captainBPos = { GetScreenWidth()/2 + 200, GetScreenHeight()/2 };
@@ -2596,6 +2651,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState) {
                     DrawRectangleRec(proceedButton, DARKGREEN);
                     DrawTextBold("Select Playing XI", proceedButton.x + 15, proceedButton.y + 10, 20, WHITE);
                     if (CheckCollisionPointRec(GetMousePosition(), proceedButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        if (IsSoundPlaying(sounds->toss)) StopSound(sounds->toss);
                         // Transition to the player selection screen for this match
                         currentStep = WC_STEP_SQUAD_SELECTION;
                         squad_selection_turn = 0; // Start with the user's team

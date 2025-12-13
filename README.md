@@ -1,0 +1,1 @@
+I have added the audio functionality to the game. You can now compile and run the game to hear the sounds. Please make sure you have the `audio.mp3` file in the `audio` directory at the root of the project.
