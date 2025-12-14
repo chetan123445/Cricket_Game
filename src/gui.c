@@ -10,6 +10,7 @@
 #include <math.h> // For cosf and sinf
 #include "raymath.h"
 #include "field_setups.h"
+#include "grounds.h"
 
 #define SILVER (Color){ 192, 192, 192, 255 }
 
@@ -32,6 +33,7 @@ typedef enum GameScreen {
     SCREEN_TEAMS, 
     SCREEN_UMPIRES,
     SCREEN_HISTORY,
+    SCREEN_GROUNDS,
     SCREEN_PLACEHOLDER,
     SCREEN_MANAGE_USERS,
     SCREEN_MATCH_SETUP,
@@ -70,6 +72,7 @@ static void InitializeAudience(void);
 static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, GameSounds *sounds);
 static void UpdateDrawUmpiresScreen(GuiState *state);
 static void UpdateDrawTeamsScreen(GuiState *state);
+
 static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title);
 static void UpdateDrawManageUsersScreen(GuiState *state);
 static void UpdateDrawMatchSetupScreen(GuiState *state);
@@ -79,9 +82,248 @@ static void DrawTextBold(const char *text, int posX, int posY, int fontSize, Col
 // Helper for text boxes
 static void HandleTextBox(TextBox *box);
 
+static const char* stristr(const char* haystack, const char* needle);
+
 // Helpers for gameplay screen
 static void DrawPlayerFigure(Vector2 position, Color color, bool is_striker, const char* team_name, bool is_swinging);
 static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState, Vector2 fieldCenter, float fieldRadius, int dragging_fielder_idx);
+
+static void UpdateDrawGroundsScreen(GuiState *state) {
+    // --- State for this screen ---
+    static Ground *grounds = NULL;
+    static int num_grounds = 0;
+    static bool needs_refresh = true;
+    static Vector2 scroll = { 0.0f, 0.0f };
+    static int editIndex = -1; // -1 means not editing, >= 0 is the index of the ground being edited
+
+    // Input boxes for adding/editing and filtering
+    static TextBox nameBox, countryBox;
+    static TextBox searchBox;
+    static bool layoutInitialized = false;
+
+    // --- UI element definitions ---
+    if (!layoutInitialized) {
+        // Add/Edit boxes
+        nameBox =      (TextBox){ { 80, 100, 200, 30 }, {0}, 0, false, false };
+        countryBox =   (TextBox){ { 290, 100, 200, 30 }, {0}, 0, false, false };
+
+        // Filter boxes
+        searchBox =    (TextBox){ { GetScreenWidth() - 440, 60, 400, 25 }, {0}, 0, false, false };
+        
+        layoutInitialized = true;
+    }
+    const Rectangle addButton = { 500, 100, 170, 30 };
+    const Rectangle backButton = { 20, GetScreenHeight() - 50, 150, 40 };
+    const Rectangle cancelEditButton = { 500, 135, 170, 25 };
+
+    // --- Logic ---
+    if (needs_refresh) {
+        if (grounds) free(grounds);
+        grounds = load_grounds(&num_grounds);
+        needs_refresh = false;
+    }
+
+    HandleTextBox(&nameBox);
+    HandleTextBox(&countryBox);
+    HandleTextBox(&searchBox);
+
+    // Clear text boxes helper lambda
+    auto void clear_boxes() {
+        memset(&nameBox.text, 0, sizeof(nameBox.text)); nameBox.charCount = 0;
+        memset(&countryBox.text, 0, sizeof(countryBox.text)); countryBox.charCount = 0;
+    };
+
+    if (CheckCollisionPointRec(GetMousePosition(), addButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (nameBox.charCount > 0 && countryBox.charCount > 0) {
+            if (editIndex == -1) { // ADD NEW GROUND
+                num_grounds++;
+                grounds = realloc(grounds, num_grounds * sizeof(Ground));
+                Ground *new_ground = &grounds[num_grounds - 1];
+                strcpy(new_ground->name, nameBox.text);
+                strcpy(new_ground->country, countryBox.text);
+            } else { // SAVE EDITED GROUND
+                Ground *edited_ground = &grounds[editIndex];
+                strcpy(edited_ground->name, nameBox.text);
+                strcpy(edited_ground->country, countryBox.text);
+                editIndex = -1; // Exit edit mode
+            }
+
+            save_grounds(grounds, num_grounds);
+            clear_boxes();
+            needs_refresh = true; // Trigger a reload to be safe
+        }
+    }
+
+    // Handle Cancel Edit button
+    if (editIndex != -1 && CheckCollisionPointRec(GetMousePosition(), cancelEditButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        editIndex = -1;
+        clear_boxes();
+    }
+
+    if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        ChangeScreen(state, state->previousScreen);
+        needs_refresh = true; // Ensure it refreshes next time we visit
+    }
+
+    // --- Drawing ---
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+
+    DrawTextBold("Manage Grounds", GetScreenWidth()/2 - MeasureText("Manage Grounds", 40)/2, 10, 40, DARKGRAY);
+    
+    // --- Draw Search and Filter UI ---
+    DrawTextBold("Search Name/Country:", searchBox.bounds.x, searchBox.bounds.y - 15, 10, GRAY);
+    DrawRectangleRec(searchBox.bounds, WHITE); DrawRectangleLinesEx(searchBox.bounds, 1, LIGHTGRAY);
+    DrawTextBold(searchBox.text, searchBox.bounds.x + 5, searchBox.bounds.y + 5, 20, BLACK);
+
+    // --- Filtering Logic (Fuzzy Search) ---
+    Ground* filtered_grounds = NULL;
+    int num_filtered_grounds = 0;
+    int* original_indices = NULL;
+
+    if (num_grounds > 0) {
+        filtered_grounds = malloc(num_grounds * sizeof(Ground));
+        original_indices = malloc(num_grounds * sizeof(int));
+        
+        for (int i = 0; i < num_grounds; i++) {
+            bool pass = false;
+            if (searchBox.charCount > 0) {
+                if (stristr(grounds[i].name, searchBox.text) || stristr(grounds[i].country, searchBox.text)) {
+                    pass = true;
+                }
+            } else {
+                pass = true;
+            }
+
+            if (pass) {
+                filtered_grounds[num_filtered_grounds] = grounds[i];
+                original_indices[num_filtered_grounds] = i;
+                num_filtered_grounds++;
+            }
+        }
+    }
+
+    // Draw input section
+    DrawTextBold("Ground Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, GRAY);
+    DrawRectangleRec(nameBox.bounds, LIGHTGRAY); DrawTextBold(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, BLACK);
+    DrawTextBold("Country", countryBox.bounds.x, countryBox.bounds.y - 20, 10, GRAY);
+    DrawRectangleRec(countryBox.bounds, LIGHTGRAY); DrawTextBold(countryBox.text, countryBox.bounds.x + 5, countryBox.bounds.y + 8, 20, BLACK);
+
+    // Draw "Add" or "Save" button based on edit mode
+    const char* buttonText = (editIndex == -1) ? "Add Ground" : "Save Changes";
+    DrawRectangleRec(addButton, (editIndex == -1) ? DARKGREEN : BLUE);
+    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, WHITE);
+    if (editIndex != -1) {
+        DrawRectangleRec(cancelEditButton, MAROON);
+        DrawTextBold("Cancel", cancelEditButton.x + cancelEditButton.width/2 - MeasureText("Cancel", 15)/2, cancelEditButton.y + 5, 15, WHITE);
+    }
+
+    // Draw list of current grounds
+    DrawRectangle(20, 150, GetScreenWidth() - 40, GetScreenHeight() - 210, DARKBROWN);
+    DrawTextBold("Current Grounds", 30, 160, 20, GOLD);
+    DrawLine(30, 185, GetScreenWidth() - 50, 185, GOLD);
+    
+    // Define the scrollable view area
+    Rectangle view = { 20, 188, GetScreenWidth() - 40, GetScreenHeight() - 250 }; // The visible panel
+    const float itemHeight = 25.0f;
+    const float headerHeight = 40.0f;
+    // Calculate the total height of the content
+    const float contentHeight = (num_filtered_grounds * itemHeight) + headerHeight;
+
+    // Handle mouse wheel scrolling if content is larger than view
+    if (contentHeight > view.height && CheckCollisionPointRec(GetMousePosition(), view)) {
+        scroll.y += GetMouseWheelMove() * itemHeight; // Scroll one item at a time
+        if (scroll.y > 0) scroll.y = 0; // Clamp top
+        if (scroll.y < view.height - contentHeight) scroll.y = view.height - contentHeight; // Clamp bottom
+    }
+
+    // Start clipping the drawing to the view rectangle
+    BeginScissorMode(view.x, view.y, view.width, view.height);
+
+    if (num_filtered_grounds > 0) {
+        const float editButtonWidth = 60;
+        const float deleteButtonWidth = 70;
+        const float buttonHeight = 20;
+        // --- DYNAMIC COLUMN WIDTH CALCULATION ---
+        float max_name_width = MeasureText("Name", 20);
+        float max_country_width = MeasureText("Country", 20);
+
+        for (int i = 0; i < num_filtered_grounds; i++) {
+            float name_width = MeasureText(filtered_grounds[i].name, 20);
+            if (name_width > max_name_width) max_name_width = name_width;
+            float country_width = MeasureText(filtered_grounds[i].country, 20);
+            if (country_width > max_country_width) max_country_width = country_width;
+        }
+
+        const int padding = 25;
+        float col1_x = 40;
+        float col2_x = col1_x + max_name_width + padding;
+        float col3_x = col2_x + max_country_width + padding;
+        
+        int header_y = view.y + 5 + scroll.y;
+        DrawTextBold("Name", col1_x, header_y, 20, GOLD);
+        DrawTextBold("Country", col2_x, header_y, 20, GOLD);
+        DrawTextBold("Actions", col3_x, header_y, 20, GOLD);
+        DrawLine(view.x + 10, header_y + 25, view.x + view.width - 20, header_y + 25, GOLD);
+
+        for (int i = 0; i < num_filtered_grounds; i++) {
+            int y_pos = view.y + headerHeight + (i * itemHeight) + scroll.y;
+            int original_index = original_indices[i];
+            Color textColor = (editIndex == original_index) ? YELLOW : RAYWHITE;
+
+            DrawTextBold(filtered_grounds[i].name, col1_x, y_pos, 20, textColor);
+            DrawTextBold(filtered_grounds[i].country, col2_x, y_pos, 20, textColor);
+
+            Rectangle editBtnRec = { col3_x, y_pos, editButtonWidth, buttonHeight };
+            Rectangle deleteBtnRec = { col3_x + editButtonWidth + 5, y_pos, deleteButtonWidth, buttonHeight };
+
+            DrawRectangleRec(editBtnRec, ORANGE);
+            DrawTextBold("Edit", editBtnRec.x + editBtnRec.width/2 - MeasureText("Edit", 15)/2, editBtnRec.y + 2, 15, BLACK);
+            DrawRectangleRec(deleteBtnRec, RED);
+            DrawTextBold("Delete", deleteBtnRec.x + deleteBtnRec.width/2 - MeasureText("Delete", 15)/2, deleteBtnRec.y + 2, 15, WHITE);
+
+            if (CheckCollisionPointRec(GetMousePosition(), editBtnRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                editIndex = original_index;
+                strcpy(nameBox.text, grounds[original_index].name); nameBox.charCount = strlen(nameBox.text);
+                strcpy(countryBox.text, grounds[original_index].country); countryBox.charCount = strlen(countryBox.text);
+            }
+
+            if (CheckCollisionPointRec(GetMousePosition(), deleteBtnRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                for (int j = original_index; j < num_grounds - 1; j++) {
+                    grounds[j] = grounds[j + 1];
+                }
+                num_grounds--;
+                if (num_grounds > 0) grounds = realloc(grounds, num_grounds * sizeof(Ground)); else { free(grounds); grounds = NULL; }
+                save_grounds(grounds, num_grounds);
+                needs_refresh = true;
+                break;
+            }
+        }
+    } else {
+        DrawTextBold("No grounds found in Data/grounds.dat.", view.x + 20, view.y + 10, 20, GRAY);
+    }
+
+    EndScissorMode();
+
+    if (contentHeight > view.height) {
+        Rectangle scrollBarArea = { view.x + view.width - 12, view.y, 10, view.height };
+        DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+        
+        float scrollBarHeight = (view.height / contentHeight) * view.height;
+        float scrollBarY = view.y + (-scroll.y / (contentHeight - view.height)) * (view.height - scrollBarHeight);
+        Rectangle scrollHandle = { scrollBarArea.x, scrollBarY, 10, scrollBarHeight };
+        DrawRectangleRec(scrollHandle, DARKGRAY);
+    }
+
+    if (filtered_grounds) free(filtered_grounds);
+    if (original_indices) free(original_indices);
+
+    DrawRectangleRec(backButton, LIGHTGRAY);
+    DrawTextBold("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, BLACK);
+
+    EndDrawing();
+}
+
 
 
 
@@ -163,6 +405,9 @@ int main(void)
                 break;
             case SCREEN_HISTORY:
                 UpdateDrawPlaceholderScreen(&guiState, "Match History");
+                break;
+            case SCREEN_GROUNDS:
+                UpdateDrawGroundsScreen(&guiState);
                 break;
             case SCREEN_PLACEHOLDER:
                 UpdateDrawPlaceholderScreen(&guiState, "Coming Soon...");
@@ -366,8 +611,9 @@ static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState) {
     const Rectangle playButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 180, 400, 60 };
     const Rectangle teamsButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 110, 400, 60 };
     const Rectangle umpiresButton = { screenWidth/2 - 200, GetScreenHeight()/2 - 40, 400, 60 };
-    const Rectangle historyButton = { screenWidth/2 - 200, GetScreenHeight()/2 + 30, 400, 60 };
-    const Rectangle logoutButton = { screenWidth/2 - 200, GetScreenHeight()/2 + 100, 400, 60 };
+    const Rectangle groundsButton = { screenWidth/2 - 200, GetScreenHeight()/2 + 30, 400, 60 };
+    const Rectangle historyButton = { screenWidth/2 - 200, GetScreenHeight()/2 + 100, 400, 60 };
+    const Rectangle logoutButton = { screenWidth/2 - 200, GetScreenHeight()/2 + 170, 400, 60 };
 
     Vector2 mousePoint = GetMousePosition();
     bool saveFileExists = FileExists("Data/saves/resume.dat");
@@ -385,6 +631,9 @@ static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState) {
     }
     if (CheckCollisionPointRec(mousePoint, umpiresButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         ChangeScreen(state, SCREEN_UMPIRES);
+    }
+    if (CheckCollisionPointRec(mousePoint, groundsButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        ChangeScreen(state, SCREEN_GROUNDS);
     }
     if (CheckCollisionPointRec(mousePoint, historyButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         ChangeScreen(state, SCREEN_HISTORY);
@@ -414,6 +663,9 @@ static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState) {
 
     DrawRectangleRec(umpiresButton, LIGHTGRAY);
     DrawText("Add/View Umpires", umpiresButton.x + umpiresButton.width/2 - MeasureText("Add/View Umpires", 20)/2, umpiresButton.y + 15, 20, BLACK);
+
+    DrawRectangleRec(groundsButton, LIGHTGRAY);
+    DrawText("Add/View Grounds", groundsButton.x + groundsButton.width/2 - MeasureText("Add/View Grounds", 20)/2, groundsButton.y + 15, 20, BLACK);
 
     DrawRectangleRec(historyButton, LIGHTGRAY);
     DrawText("View History", historyButton.x + historyButton.width/2 - MeasureText("View History", 20)/2, historyButton.y + 15, 20, BLACK);
@@ -2277,11 +2529,14 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
     }
 
     // Draw Back Button
+
+    // Draw Back Button
     DrawRectangleRec(backButton, MAROON);
     DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, WHITE);
 
     EndDrawing();
 }
+
 
 static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title) {
     const Rectangle backButton = { 20, GetScreenHeight() - 60, 150, 40 };
