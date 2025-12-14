@@ -1390,29 +1390,30 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
     static Vector2 scroll = { 0.0f, 0.0f };
     static int editIndex = -1; // -1 means not editing, >= 0 is the index of the umpire being edited
 
-    // Input boxes for adding a new umpire
-    static TextBox nameBox = { { 0}, {0}, 0, false, false };
-    static TextBox countryBox = { { 0}, {0}, 0, false, false };
-    static TextBox yearBox = { { 0}, {0}, 0, false, false };
-    static TextBox matchesBox = { { 0}, {0}, 0, false, false };
-    const Rectangle addButton = { 610, 100, 170, 30 };
-    const Rectangle backButton = { 20, GetScreenHeight() - 50, 150, 40 };
-    const Rectangle cancelEditButton = { 610, 135, 170, 25 };
+    // Input boxes for adding/editing and filtering
+    static TextBox nameBox, countryBox, yearBox, matchesBox;
+    static TextBox searchBox, filterCountryBox, filterMatchesBox, filterYearBox;
+    static bool layoutInitialized = false;
 
-    // Search and Filter boxes
-    static TextBox searchBox = { { 0}, {0}, 0, false, false };
-    static TextBox filterCountryBox;
-    static TextBox filterMatchesBox;
-    static TextBox filterYearBox;
-    static bool filterBoxesInitialized = false;
+    // --- UI element definitions ---
+    if (!layoutInitialized) {
+        // Add/Edit boxes
+        nameBox =      (TextBox){ { 80, 100, 120, 30 }, {0}, 0, false, false };
+        countryBox =   (TextBox){ { 210, 100, 120, 30 }, {0}, 0, false, false };
+        yearBox =      (TextBox){ { 340, 100, 120, 30 }, {0}, 0, false, false };
+        matchesBox =   (TextBox){ { 470, 100, 120, 30 }, {0}, 0, false, false };
 
-    if (!filterBoxesInitialized) {
+        // Filter boxes
+        searchBox =    (TextBox){ { GetScreenWidth() - 640, 60, 200, 25 }, {0}, 0, false, false };
         filterCountryBox = (TextBox){ { GetScreenWidth() - 430, 60, 100, 25 }, {0}, 0, false, false };
         filterMatchesBox = (TextBox){ { GetScreenWidth() - 320, 60, 100, 25 }, {0}, 0, false, false };
         filterYearBox = (TextBox){ { GetScreenWidth() - 210, 60, 100, 25 }, {0}, 0, false, false };
-        filterBoxesInitialized = true;
+        
+        layoutInitialized = true;
     }
-    
+    const Rectangle addButton = { 610, 100, 170, 30 };
+    const Rectangle backButton = { 20, GetScreenHeight() - 50, 150, 40 };
+    const Rectangle cancelEditButton = { 610, 135, 170, 25 };
     const Rectangle clearFiltersButton = { GetScreenWidth() - 100, 60, 80, 25 };
 
 
@@ -2057,56 +2058,85 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             sprintf(runOutsBox.text, "0"); runOutsBox.charCount = 1;
         }
 
-        // Player List
-        Rectangle playerListView = { panelRight.x + 1, panelRight.y + 50, panelRight.width - 2, panelRight.height - 60 };
-        DrawRectangleRec(playerListView, WHITE);
-
-        // Header for player list
-        // Handle horizontal scrolling for the player list
-        if (CheckCollisionPointRec(GetMousePosition(), playerListView)) {
-            playerScroll.y += GetMouseWheelMove() * 25.0f;
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                playerScroll.x += GetMouseWheelMove() * 25.0f;
-            }
-        }
-
-        BeginScissorMode(playerListView.x, playerListView.y, playerListView.width, playerListView.height);
-
+        Team* selectedTeam = &teams[selectedTeamIndex];
+        // --- Player List Refactored with Scrollbars ---
         // --- Column Definitions and Sizing ---
         const int col_padding = 15;
-        float col_widths[] = { 150, 120, 50, 80, 40, 70, 80, 80, 80, 40, 70, 80, 80, 80, 120 }; // Last is for actions
+                        float col_widths[] = { 250, 220, 50, 310, 40, 70, 80, 80, 80, 40, 70, 80, 80, 80, 120 }; // Last is for actions
         const char* col_headers[] = { "Name", "Role", "Bat", "Bowl", "WK", "Active", "Bat Skl", "Bwl Skl", "Fld Skl", "M", "Runs", "Wkts", "Stumps", "RunOuts", "Actions" };
-        float col_x[15];
-        col_x[0] = playerListView.x + 10 + playerScroll.x;
-        for (int i = 1; i < 15; i++) {
-            col_x[i] = col_x[i-1] + col_widths[i-1] + col_padding;
+        const int num_cols = sizeof(col_headers) / sizeof(col_headers[0]);
+        
+        float contentWidth = 20; // Initial left padding
+        for (int i = 0; i < num_cols; i++) {
+            contentWidth += col_widths[i] + col_padding;
         }
+        float contentHeight = 40 + (selectedTeam->num_players * 25); // 40 for header
+
+        Rectangle playerListView = { panelRight.x + 1, panelRight.y + 50, panelRight.width - 2, panelRight.height - 60 };
+        
+        Rectangle view = playerListView; // The area where content is drawn
+        DrawRectangleRec(view, WHITE); // Draw background for the whole area
+
+        bool horizScrollbarRequired = contentWidth > view.width;
+        bool vertScrollbarRequired = contentHeight > view.height;
+
+        // Reserve space for scrollbars if they are needed, this also defines the scissor rect
+        Rectangle scissorView = playerListView;
+        if (horizScrollbarRequired) scissorView.height -= 12;
+        if (vertScrollbarRequired) scissorView.width -= 12;
+
+        // Clamp Scrolling Values based on the actual drawable area (scissorView)
+        if (playerScroll.y > 0) playerScroll.y = 0;
+        if (vertScrollbarRequired && playerScroll.y < scissorView.height - contentHeight) playerScroll.y = scissorView.height - contentHeight;
+        if (!vertScrollbarRequired) playerScroll.y = 0;
+
+        if (playerScroll.x > 0) playerScroll.x = 0;
+        if (horizScrollbarRequired && playerScroll.x < scissorView.width - contentWidth) playerScroll.x = scissorView.width - contentWidth;
+        if (!horizScrollbarRequired) playerScroll.x = 0;
+
+        // Handle mouse wheel scrolling
+        if (CheckCollisionPointRec(GetMousePosition(), scissorView)) {
+            playerScroll.y += GetMouseWheelMove() * 25.0f;
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                 playerScroll.x += GetMouseWheelMove() * 25.0f;
+            }
+        }
+        
+        BeginScissorMode(scissorView.x, scissorView.y, scissorView.width, scissorView.height);
 
         // Draw Headers
-        for (int i = 0; i < 15; i++) {
-            DrawTextBold(col_headers[i], col_x[i], playerListView.y + 10, 20, DARKGRAY);
+        float col_x[num_cols];
+        col_x[0] = scissorView.x + 10 + playerScroll.x;
+        for (int i = 1; i < num_cols; i++) {
+            col_x[i] = col_x[i-1] + col_widths[i-1] + col_padding;
+        }
+        for (int i = 0; i < num_cols; i++) {
+            DrawTextBold(col_headers[i], col_x[i], scissorView.y + 10, 20, DARKGRAY);
         }
 
-        Team* selectedTeam = &teams[selectedTeamIndex];
+        // Draw Players
         for (int i = 0; i < selectedTeam->num_players; i++) {
             Player* p = &selectedTeam->players[i];
-            float y_pos = playerListView.y + 40 + (i * 25) + playerScroll.y;
+            float y_pos = scissorView.y + 40 + (i * 25) + playerScroll.y;
+             if (y_pos < scissorView.y - 25 || y_pos > scissorView.y + scissorView.height) continue; // Culling
             
             Color textColor = BLACK;
-            char name_suffix[8] = {0};
+            char name_suffix[16] = {0};
 
+            if (p->is_wicketkeeper) {
+                strcat(name_suffix, " (WK)");
+            }
             if (i == selectedTeam->captain_idx) {
                 textColor = GOLD;
-                strcpy(name_suffix, " (C)");
+                strcat(name_suffix, " (C)");
             } else if (i == selectedTeam->vice_captain_idx) {
                 textColor = SILVER;
-                strcpy(name_suffix, " (VC)");
+                strcat(name_suffix, " (VC)");
             }
 
-            char player_display_name[MAX_PLAYER_NAME_LEN + 8];
+            char player_display_name[MAX_PLAYER_NAME_LEN + 16];
             snprintf(player_display_name, sizeof(player_display_name), "%s%s", p->name, name_suffix);
 
-            // Draw all player details in their respective columns, perfectly aligned
             DrawText(player_display_name, col_x[0], y_pos, 20, textColor);
             DrawText(playerTypeNames[p->type], col_x[1], y_pos, 20, DARKGRAY);
             DrawText(p->batting_style == BATTING_STYLE_RHB ? "RHB" : "LHB", col_x[2], y_pos, 20, DARKGRAY);
@@ -2122,7 +2152,6 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             DrawText(TextFormat("%d", p->total_stumpings), col_x[12], y_pos, 20, DARKPURPLE);
             DrawText(TextFormat("%d", p->total_run_outs), col_x[13], y_pos, 20, DARKPURPLE);
 
-            // Draw Edit/Delete buttons for the player
             Rectangle editBtn = { col_x[14], y_pos, 50, 20 };
             Rectangle deleteBtn = { col_x[14] + 55, y_pos, 60, 20 };
             DrawRectangleRec(editBtn, ORANGE); DrawText("Edit", editBtn.x + 10, editBtn.y + 2, 15, BLACK);
@@ -2131,7 +2160,6 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             if (CheckCollisionPointRec(GetMousePosition(), editBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 editPlayerIndex = i;
                 showAddPlayerForm = true;
-                // Load player data into the form template and text boxes
                 new_player_template = *p;
                 strcpy(addPlayerNameBox.text, p->name); addPlayerNameBox.charCount = strlen(p->name);
                 sprintf(batSkillBox.text, "%d", p->batting_skill); batSkillBox.charCount = strlen(batSkillBox.text);
@@ -2145,18 +2173,61 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             }
 
             if (CheckCollisionPointRec(GetMousePosition(), deleteBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                // Shift all subsequent players up to delete the current one
                 for (int j = i; j < selectedTeam->num_players - 1; j++) {
                     selectedTeam->players[j] = selectedTeam->players[j + 1];
                 }
                 selectedTeam->num_players--;
                 save_teams(teams, num_teams);
                 needs_refresh = true;
-                break; // Exit loop as the player array has been modified
+                break;
             }
         }
         
         EndScissorMode();
+        
+        // --- Draw and Handle Vertical Scrollbar ---
+        if (vertScrollbarRequired) {
+            Rectangle scrollBarArea = { scissorView.x + scissorView.width, scissorView.y, 10, scissorView.height };
+            DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+            
+            float handleHeight = (scissorView.height / contentHeight) * scissorView.height;
+            if (handleHeight < 20) handleHeight = 20; // Minimum handle size
+            float handleY = scissorView.y + (-playerScroll.y / (contentHeight - scissorView.height)) * (scissorView.height - handleHeight);
+            Rectangle scrollHandle = { scrollBarArea.x, handleY, 10, handleHeight };
+            DrawRectangleRec(scrollHandle, DARKGRAY);
+
+            static bool isDragging = false;
+            if (CheckCollisionPointRec(GetMousePosition(), scrollHandle) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isDragging = true;
+            if (isDragging) {
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) isDragging = false;
+                else {
+                    // Relative mouse movement
+                    playerScroll.y -= GetMouseDelta().y * (contentHeight / scissorView.height);
+                }
+            }
+        }
+
+        // --- Draw and Handle Horizontal Scrollbar ---
+        if (horizScrollbarRequired) {
+            Rectangle scrollBarArea = { scissorView.x, scissorView.y + scissorView.height, scissorView.width, 10 };
+            DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+            
+            float handleWidth = (scissorView.width / contentWidth) * scissorView.width;
+            if (handleWidth < 20) handleWidth = 20; // Minimum handle size
+            float handleX = scissorView.x + (-playerScroll.x / (contentWidth - scissorView.width)) * (scissorView.width - handleWidth);
+            Rectangle scrollHandle = { handleX, scrollBarArea.y, handleWidth, 10 };
+            DrawRectangleRec(scrollHandle, DARKGRAY);
+
+            static bool isDragging = false;
+            if (CheckCollisionPointRec(GetMousePosition(), scrollHandle) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isDragging = true;
+            if (isDragging) {
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) isDragging = false;
+                else {
+                    // Relative mouse movement
+                    playerScroll.x -= GetMouseDelta().x * (contentWidth / scissorView.width);
+                }
+            }
+        }
     }
     } else {
         DrawTextBold("Select a team to view players", panelRight.x + 10, panelRight.y + 15, 20, GRAY);
@@ -2294,6 +2365,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
     
     // State for the two-step playing XI selection
     static int squad_selection_turn = 0; // 0 for user's team, 1 for opponent's team
+    static int designated_wk_idx = -1; // -1 for no designated wicketkeeper
     static Team match_team_A, match_team_B; // Temporary teams to hold the final 11 players for the match
 
 
@@ -2379,8 +2451,32 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                     count++;
                 }
 
+                float buttonRowY = GetScreenHeight() - 120; // Moved buttons up to avoid overlap
+                float totalButtonsWidth = 150 + 150 + 10; // width of both buttons plus spacing
+                float startX = (GetScreenWidth() - totalButtonsWidth) / 2;
+
+                Rectangle selectAllButton = { startX, buttonRowY, 150, 40 };
+                DrawRectangleRec(selectAllButton, DARKBLUE);
+                DrawTextBold("Select All", selectAllButton.x + 35, selectAllButton.y + 10, 20, WHITE);
+                if (CheckCollisionPointRec(GetMousePosition(), selectAllButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    for (int i = 0; i < num_all_teams; i++) {
+                        if (!all_teams[i].is_deleted && !all_teams[i].is_hidden) {
+                            selected_teams_mask[i] = true;
+                        }
+                    }
+                }
+
+                Rectangle deselectAllButton = { startX + 160, buttonRowY, 150, 40 };
+                DrawRectangleRec(deselectAllButton, MAROON);
+                DrawTextBold("Deselect All", deselectAllButton.x + 25, deselectAllButton.y + 10, 20, WHITE);
+                if (CheckCollisionPointRec(GetMousePosition(), deselectAllButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    for (int i = 0; i < num_all_teams; i++) {
+                        selected_teams_mask[i] = false;
+                    }
+                }
+
                 // "Next" button to proceed to squad selection
-                Rectangle nextButton = { GetScreenWidth() - 200, GetScreenHeight() - 60, 150, 40 };
+                Rectangle nextButton = { GetScreenWidth() - 200, buttonRowY, 150, 40 };
                 DrawRectangleRec(nextButton, DARKGREEN);
                 DrawTextBold("Next", nextButton.x + 50, nextButton.y + 10, 20, WHITE);
                 if (CheckCollisionPointRec(GetMousePosition(), nextButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -2726,12 +2822,13 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
 
             BeginScissorMode(view.x, view.y, view.width, view.height);
             for (int i = 0; i < team_to_select_for->num_players; i++) {
-                Rectangle playerButton = { view.x + 10, view.y + 10 + (i * itemHeight) + scroll.y, view.width - 120, itemHeight - 2 };
+                Rectangle playerButton = { view.x + 10, view.y + 10 + (i * itemHeight) + scroll.y, view.width - 200, itemHeight - 2 };
                 bool isSelected = player_selection_mask[i];
                 DrawRectangleRec(playerButton, isSelected ? SKYBLUE : LIGHTGRAY);
                 
                 char player_text[256];
                 sprintf(player_text, "%s", team_to_select_for->players[i].name);
+                if (i == designated_wk_idx) strcat(player_text, " (WK)");
                 if (i == team_to_select_for->captain_idx) strcat(player_text, " (C)");
                 if (i == team_to_select_for->vice_captain_idx) strcat(player_text, " (VC)");
                 DrawText(player_text, playerButton.x + 10, playerButton.y + 5, 20, BLACK);
@@ -2740,7 +2837,19 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                     player_selection_mask[i] = !player_selection_mask[i];
                 }
 
-                Rectangle c_button = { playerButton.x + playerButton.width + 5, playerButton.y, 40, itemHeight - 2 };
+                float buttonX = playerButton.x + playerButton.width + 5;
+
+                if (team_to_select_for->players[i].is_wicketkeeper) {
+                    Rectangle wk_button = { buttonX, playerButton.y, 40, itemHeight - 2 };
+                    DrawRectangleRec(wk_button, (i == designated_wk_idx) ? GREEN : LIGHTGRAY);
+                    DrawText("WK", wk_button.x + 10, wk_button.y + 5, 20, BLACK);
+                    if (CheckCollisionPointRec(GetMousePosition(), wk_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        designated_wk_idx = i;
+                    }
+                    buttonX += 45;
+                }
+
+                Rectangle c_button = { buttonX, playerButton.y, 40, itemHeight - 2 };
                 Rectangle vc_button = { c_button.x + c_button.width + 5, playerButton.y, 40, itemHeight - 2 };
 
                 DrawRectangleRec(c_button, (i == team_to_select_for->captain_idx) ? GOLD : LIGHTGRAY);
@@ -2803,19 +2912,21 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             DrawTextBold(nextButtonText, nextButton.x + 20, nextButton.y + 10, 20, WHITE);
             if (CheckCollisionPointRec(GetMousePosition(), nextButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 // Validation
-                int wicketkeepers = 0, bowlers = 0;
+                int bowlers = 0;
                 if (selected_count != 11) {
                     strcpy(validation_error, "You must select exactly 11 players.");
+                } else if (designated_wk_idx == -1) {
+                    strcpy(validation_error, "You must designate a wicketkeeper.");
+                } else if (!player_selection_mask[designated_wk_idx]) {
+                    strcpy(validation_error, "The designated wicketkeeper must be in the squad.");
                 } else {
                     for(int i=0; i<team_to_select_for->num_players; i++) {
                         if (player_selection_mask[i]) {
                             Player* p = &team_to_select_for->players[i];
-                            if (p->is_wicketkeeper) wicketkeepers++;
                             if (p->type == PLAYER_TYPE_BOWLER || p->type == PLAYER_TYPE_ALLROUNDER) bowlers++;
                         }
                     }
-                    if (wicketkeepers < 1) strcpy(validation_error, "Squad must have at least 1 wicketkeeper.");
-                    else if (bowlers < 5) strcpy(validation_error, "Squad must have at least 5 bowling options.");
+                    if (bowlers < 5) strcpy(validation_error, "Squad must have at least 5 bowling options.");
                     else { // Validation passed
                         validation_error[0] = '\0'; // Clear error
 
