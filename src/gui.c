@@ -2060,11 +2060,54 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
         Team* selectedTeam = &teams[selectedTeamIndex];
         // --- Player List Refactored with Scrollbars ---
-        // --- Column Definitions and Sizing ---
-        const int col_padding = 15;
-                        float col_widths[] = { 250, 220, 50, 310, 40, 70, 80, 80, 80, 40, 70, 80, 80, 80, 120 }; // Last is for actions
+        // --- DYNAMIC COLUMN WIDTH CALCULATION ---
         const char* col_headers[] = { "Name", "Role", "Bat", "Bowl", "WK", "Active", "Bat Skl", "Bwl Skl", "Fld Skl", "M", "Runs", "Wkts", "Stumps", "RunOuts", "Actions" };
         const int num_cols = sizeof(col_headers) / sizeof(col_headers[0]);
+        float col_widths[num_cols];
+
+        // 1. Initialize with header widths
+        for (int i = 0; i < num_cols; i++) {
+            col_widths[i] = MeasureText(col_headers[i], 20) + 10; // Add some padding
+        }
+        col_widths[num_cols - 1] = 120; // Actions column is fixed
+
+        // 2. Iterate through players to find max widths
+        for (int i = 0; i < selectedTeam->num_players; i++) {
+            Player* p = &selectedTeam->players[i];
+            char buffer[256];
+
+            // Player Name (with suffixes)
+            char name_suffix[16] = {0};
+            if (p->is_wicketkeeper) strcat(name_suffix, " (WK)");
+            if (i == selectedTeam->captain_idx) strcat(name_suffix, " (C)");
+            if (i == selectedTeam->vice_captain_idx) strcat(name_suffix, " (VC)");
+            snprintf(buffer, sizeof(buffer), "%s%s", p->name, name_suffix);
+            if (MeasureText(buffer, 20) > col_widths[0]) col_widths[0] = MeasureText(buffer, 20);
+
+            // Role
+            if (MeasureText(playerTypeNames[p->type], 20) > col_widths[1]) col_widths[1] = MeasureText(playerTypeNames[p->type], 20);
+            // Batting Style
+            if (MeasureText(p->batting_style == BATTING_STYLE_RHB ? "RHB" : "LHB", 20) > col_widths[2]) col_widths[2] = MeasureText(p->batting_style == BATTING_STYLE_RHB ? "RHB" : "LHB", 20);
+            // Bowling Style
+            if (MeasureText(bowlStyleNames[p->bowling_style], 20) > col_widths[3]) col_widths[3] = MeasureText(bowlStyleNames[p->bowling_style], 20);
+            // WK & Active (Yes/No)
+            if (MeasureText("Yes", 20) > col_widths[4]) col_widths[4] = MeasureText("Yes", 20);
+            if (MeasureText("Yes", 20) > col_widths[5]) col_widths[5] = MeasureText("Yes", 20);
+
+            // Skills
+            if (MeasureText(TextFormat("%d", p->batting_skill), 20) > col_widths[6]) col_widths[6] = MeasureText(TextFormat("%d", p->batting_skill), 20);
+            if (MeasureText(TextFormat("%d", p->bowling_skill), 20) > col_widths[7]) col_widths[7] = MeasureText(TextFormat("%d", p->bowling_skill), 20);
+            if (MeasureText(TextFormat("%d", p->fielding_skill), 20) > col_widths[8]) col_widths[8] = MeasureText(TextFormat("%d", p->fielding_skill), 20);
+
+            // Stats
+            if (MeasureText(TextFormat("%d", p->matches_played), 20) > col_widths[9]) col_widths[9] = MeasureText(TextFormat("%d", p->matches_played), 20);
+            if (MeasureText(TextFormat("%d", p->total_runs), 20) > col_widths[10]) col_widths[10] = MeasureText(TextFormat("%d", p->total_runs), 20);
+            if (MeasureText(TextFormat("%d", p->total_wickets), 20) > col_widths[11]) col_widths[11] = MeasureText(TextFormat("%d", p->total_wickets), 20);
+            if (MeasureText(TextFormat("%d", p->total_stumpings), 20) > col_widths[12]) col_widths[12] = MeasureText(TextFormat("%d", p->total_stumpings), 20);
+            if (MeasureText(TextFormat("%d", p->total_run_outs), 20) > col_widths[13]) col_widths[13] = MeasureText(TextFormat("%d", p->total_run_outs), 20);
+        }
+
+        const int col_padding = 25; // Increased padding
         
         float contentWidth = 20; // Initial left padding
         for (int i = 0; i < num_cols; i++) {
