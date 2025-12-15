@@ -870,20 +870,19 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     }
 
     // TEAM NAMES
-    DrawTextBold(gameState->batting_team->name, panel.x + 90, panel.y + 30, 26, WHITE);
-    DrawTextBold(gameState->bowling_team->name, panel.x + panel.width - 260, panel.y + 30, 22, GRAY);
+    DrawTextBold(gameState->batting_team->name, panel.x + 130, panel.y + 30, 26, WHITE);
 
     // SCORE
     DrawTextBold(
         TextFormat("%d / %d", gameState->total_runs, gameState->wickets),
-        panel.x + 90, panel.y + 60, 34, YELLOW
+        panel.x + 130, panel.y + 60, 34, YELLOW
     );
 
     DrawText(
         TextFormat("Overs: %d.%d",
             gameState->overs_completed,
             gameState->balls_bowled_in_over),
-        panel.x + 90, panel.y + 95, 20, RAYWHITE
+        panel.x + 130, panel.y + 95, 20, RAYWHITE
     );
 
     // BATSMEN
@@ -1705,7 +1704,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     DrawScorecardUI(gameState, state);
     
     if (currentPhase == PHASE_IDLE && !isGameOver) {
-        DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 70, 20, YELLOW);
+        DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 230, 20, YELLOW);
     } else if (isGameOver) {
         if (gameState->inning_num == 1) {
             currentPhase = PHASE_INNINGS_BREAK;
