@@ -6,6 +6,8 @@
 #include "history.h"
 #include "teams.h"
 #include "ui.h"
+#include "grounds.h"
+#include "umpires.h"
 
 static void run_tournament(MatchFormat format, const char* user_email);
 
@@ -54,7 +56,71 @@ void tournament_menu(const char *user_email, const char *user_name)
             Team *teamA = &teams[teamA_idx - 1];
             Team *teamB = &teams[teamB_idx - 1];
             
-            char umpire[64] = "Default Umpire";
+            int num_umpires = 0;
+            Umpire* umpires = load_umpires(&num_umpires);
+            int num_grounds = 0;
+            Ground* grounds = load_grounds(&num_grounds);
+
+            if (num_umpires < 2) {
+                printf("You need at least 2 umpires to play a match. Please add umpires from the admin menu.\n");
+                free(teams);
+                if (umpires) free(umpires);
+                if (grounds) free(grounds);
+                continue;
+            }
+
+            if (num_grounds < 1) {
+                printf("You need at least 1 ground to play a match. Please add grounds.\n");
+                free(teams);
+                if (umpires) free(umpires);
+                if (grounds) free(grounds);
+                continue;
+            }
+
+            printf("Available Grounds:\n");
+            for (int i = 0; i < num_grounds; i++) {
+                printf("%d) %s\n", i + 1, grounds[i].name);
+            }
+            int ground_idx = -1;
+            printf("Choose a ground: ");
+            if (scanf("%d", &ground_idx) != 1 || ground_idx < 1 || ground_idx > num_grounds) {
+                printf("Invalid ground selection.\n");
+                free(teams);
+                free(umpires);
+                free(grounds);
+                continue;
+            }
+            clean_stdin();
+            Ground* selected_ground = &grounds[ground_idx - 1];
+
+            printf("Available Umpires:\n");
+            for (int i = 0; i < num_umpires; i++) {
+                printf("%d) %s\n", i + 1, umpires[i].name);
+            }
+            int umpire1_idx = -1, umpire2_idx = -1;
+            printf("Choose Umpire 1: ");
+            if (scanf("%d", &umpire1_idx) != 1 || umpire1_idx < 1 || umpire1_idx > num_umpires) {
+                printf("Invalid umpire selection.\n");
+                free(teams);
+                free(umpires);
+                free(grounds);
+                continue;
+            }
+            clean_stdin();
+            printf("Choose Umpire 2: ");
+            if (scanf("%d", &umpire2_idx) != 1 || umpire2_idx < 1 || umpire2_idx > num_umpires || umpire1_idx == umpire2_idx) {
+                printf("Invalid umpire selection.\n");
+                free(teams);
+                free(umpires);
+                free(grounds);
+                continue;
+            }
+            clean_stdin();
+            Umpire* selected_umpire1 = &umpires[umpire1_idx - 1];
+            Umpire* selected_umpire2 = &umpires[umpire2_idx - 1];
+            char umpire_names[201];
+            snprintf(umpire_names, sizeof(umpire_names), "%s, %s", selected_umpire1->name, selected_umpire2->name);
+
             int autoplay = 1, rain = 1;
             MatchFormat fmt = FORMAT_T20;
             
@@ -66,21 +132,17 @@ void tournament_menu(const char *user_email, const char *user_name)
             else if (ff == 3) fmt = FORMAT_TEST; 
             else fmt = FORMAT_T20;
             
-            printf("Umpire name (or Enter for default): "); 
-            if (!fgets(umpire, sizeof(umpire), stdin) || umpire[0] == '\n') {
-                strcpy(umpire, "Default Umpire");
-            }
-            umpire[strcspn(umpire, "\r\n")] = 0;
-            
             printf("Enable autoplay? (1 for yes, 0 for no): ");
             if (scanf("%d", &autoplay) != 1) autoplay = 1;
             clean_stdin();
 
             char summary[512] = {0};
-            simulate_match(teamA, teamB, fmt, autoplay, rain, umpire, summary, sizeof(summary));
+            simulate_match(teamA, teamB, fmt, autoplay, rain, umpire_names, selected_ground->name, summary, sizeof(summary));
             printf("\nMatch result:\n%s\n", summary);
             append_user_history(user_email, summary);
             free(teams);
+            free(umpires);
+            free(grounds);
         }
         else if (c >= 1 && c <= 5) {
             MatchFormat fmt = FORMAT_T20;
@@ -194,7 +256,9 @@ static void run_tournament(MatchFormat format, const char* user_email) {
         Match *m = &t.matches[i];
         printf("\nSimulating match: %s vs %s\n", m->teamA->name, m->teamB->name);
         char summary[512] = {0};
-        simulate_match(m->teamA, m->teamB, m->format, autoplay, 1, "Default Umpire", summary, sizeof(summary));
+        const char* default_umpires = "Default Umpire";
+        const char* default_ground = "Default Ground";
+        simulate_match(m->teamA, m->teamB, m->format, autoplay, 1, default_umpires, default_ground, summary, sizeof(summary));
         printf("%s\n", summary);
         append_user_history(user_email, summary);
 

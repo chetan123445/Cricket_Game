@@ -67,14 +67,6 @@ typedef struct {
     bool is_hidden;
 } Team;
 
-// Structure to represent an umpire with details
-typedef struct {
-    char name[MAX_PLAYER_NAME_LEN];
-    char country[MAX_PLAYER_NAME_LEN];
-    int since_year;
-    int matches_umpired;
-} Umpire;
-
 void teams_menu(const char *user_email);
 void umpires_menu(const char *user_email);
 
@@ -82,8 +74,6 @@ void umpires_menu(const char *user_email);
 Team* load_teams(int *num_teams);
 void save_teams(const Team *teams, int num_teams);
 void show_player_stats(const Team *team);
-Umpire* load_umpires(int *num_umpires);
-void save_umpires(const Umpire *umpires, int num_umpires);
 Player* load_global_players(int *num_players);
 
 void initialize_dummy_teams(Team *teamA, Team *teamB);

@@ -442,7 +442,7 @@ bool load_game_state(GameState *state, const char *filename) {
     return true;
 }
 
-int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, int rain_possible, const char *umpire, char *out_summary, size_t summary_sz)
+int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, int rain_possible, const char *umpires, const char* ground, char *out_summary, size_t summary_sz)
 {
     create_saves_directory(); // Ensure the saves directory exists
     // Generate a unique match ID
@@ -472,6 +472,8 @@ int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, i
 
     printf("\n--- Let's Play! ---\n");
     printf("%s vs %s\n", teamA->name, teamB->name);
+    printf("Ground: %s\n", ground);
+    printf("Umpires: %s\n", umpires);
 
     // Toss
     printf("Time for the toss. Heads (H) or Tails (T)? ");
@@ -529,9 +531,9 @@ int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, i
 
     // Note: DLS calculation is complex. For now, we'll just compare raw scores.
     // A proper DLS implementation would adjust the target after the rain interruption in the first innings.
-    if (runsA == runsB) snprintf(out_summary, summary_sz, "Match Drawn: %s %d - %s %d. Umpire: %s", batting_first->name, runsA, fielding_first->name, runsB, umpire);
-    else if (runsA > runsB) snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", batting_first->name, fielding_first->name, runsA, wkA, runsB, wkB, umpire);
-    else snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Umpire: %s", fielding_first->name, batting_first->name, runsB, wkB, runsA, wkA, umpire);
+    if (runsA == runsB) snprintf(out_summary, summary_sz, "Match Drawn: %s %d - %s %d. Ground: %s, Umpires: %s", batting_first->name, runsA, fielding_first->name, runsB, ground, umpires);
+    else if (runsA > runsB) snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Ground: %s, Umpires: %s", batting_first->name, fielding_first->name, runsA, wkA, runsB, wkB, ground, umpires);
+    else snprintf(out_summary, summary_sz, "%s beat %s. Score %d/%d vs %d/%d. Ground: %s, Umpires: %s", fielding_first->name, batting_first->name, runsB, wkB, runsA, wkA, ground, umpires);
 
     end_match_log(&match_state); // End logging for the match
     return 1;

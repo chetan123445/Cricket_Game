@@ -11,6 +11,7 @@
 #include "raymath.h"
 #include "field_setups.h"
 #include "grounds.h"
+#include "umpires.h"
 
 #define SILVER (Color){ 192, 192, 192, 255 }
 
@@ -47,6 +48,8 @@ typedef struct {
     UserType userType;
     char userEmail[128];
     char userName[64];
+    char groundName[100];
+    char umpireNames[201];
 } GuiState;
 
 // Structure to hold all game sounds
@@ -823,8 +826,28 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
     // --- Fielding Setup UI ---
     const char* field_setup_names[] = {"PP_Aggressive", "PP_Defensive", "MO_Normal", "MO_Defensive", "DO_Defensive"};
-    Rectangle fieldSetupButton = { GetScreenWidth() - 200, 20, 180, 40 };
-    Rectangle editFieldButton = { GetScreenWidth() - 200, 70, 180, 40 };
+    int x_offset = GetScreenWidth() - 350;
+    Rectangle fieldSetupButton = { x_offset, 20, 180, 40 };
+    Rectangle editFieldButton = { x_offset, 70, 180, 40 };
+
+    char groundText[150];
+    sprintf(groundText, "Ground: %s", state->groundName);
+    DrawTextBold(groundText, x_offset, editFieldButton.y + editFieldButton.height + 10, 20, WHITE);
+
+    // Handle umpires display
+    DrawTextBold("Umpires:", x_offset, editFieldButton.y + editFieldButton.height + 40, 20, WHITE);
+    char umpire1[101] = {0};
+    char umpire2[101] = {0};
+    const char *comma = strstr(state->umpireNames, ", ");
+    if (comma) {
+        strncpy(umpire1, state->umpireNames, comma - state->umpireNames);
+        strcpy(umpire2, comma + 2);
+        DrawTextBold(umpire1, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, WHITE);
+        DrawTextBold(umpire2, x_offset, editFieldButton.y + editFieldButton.height + 80, 20, WHITE);
+    } else {
+        DrawTextBold(state->umpireNames, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, WHITE);
+    }
+
 
     if (gameState->gameplay_mode == GAMEPLAY_MODE_PLAYING) {
         DrawRectangleRec(fieldSetupButton, DARKBLUE);
@@ -2643,7 +2666,8 @@ typedef enum {
     WC_STEP_SQUAD_SELECTION,
     WC_STEP_USER_TEAM_CHOICE,
     WC_STEP_FIXTURES,
-    WC_STEP_PRE_MATCH
+    WC_STEP_PRE_MATCH,
+    WC_STEP_GROUND_UMPIRE_SELECTION
 } WorldCupSetupStep;
 
 static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameSounds *sounds) {
@@ -3276,13 +3300,75 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                             gameState->rain_percentage = rain_percentage; // Pass the rain setting
                             gameState->inning_num = 1;
                             
-                            ChangeScreen(state, SCREEN_GAMEPLAY);
+                            currentStep = WC_STEP_GROUND_UMPIRE_SELECTION;
                         }
                     }
                 }
             }
             if (validation_error[0] != '\0') {
                 DrawText(validation_error, nextButton.x - MeasureText(validation_error, 20) - 20, nextButton.y + 10, 20, RED);
+            }
+            break;
+        }
+        case WC_STEP_GROUND_UMPIRE_SELECTION: {
+            static Ground* grounds = NULL;
+            static int num_grounds = 0;
+            static Umpire* umpires = NULL;
+            static int num_umpires = 0;
+            static bool data_loaded = false;
+            static int ground_idx = -1;
+            static int umpire1_idx = -1;
+            static int umpire2_idx = -1;
+
+            if (!data_loaded) {
+                grounds = load_grounds(&num_grounds);
+                umpires = load_umpires(&num_umpires);
+                data_loaded = true;
+            }
+
+            DrawTextBold("Select Ground and Umpires", GetScreenWidth() / 2 - MeasureText("Select Ground and Umpires", 40) / 2, 20, 40, DARKGRAY);
+
+            // Ground Selection
+            DrawText("Select Ground", 50, 100, 20, DARKGRAY);
+            for (int i = 0; i < num_grounds; i++) {
+                Rectangle groundButton = { 50, 130 + i * 30, 300, 25 };
+                bool isSelected = (i == ground_idx);
+                DrawRectangleRec(groundButton, isSelected ? DARKBLUE : LIGHTGRAY);
+                DrawText(grounds[i].name, groundButton.x + 10, groundButton.y + 5, 20, isSelected ? WHITE : BLACK);
+                if (CheckCollisionPointRec(GetMousePosition(), groundButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    ground_idx = i;
+                }
+            }
+
+            // Umpire Selection
+            DrawText("Select Two Umpires", 400, 100, 20, DARKGRAY);
+            for (int i = 0; i < num_umpires; i++) {
+                Rectangle umpireButton = { 400, 130 + i * 30, 300, 25 };
+                bool isSelected = (i == umpire1_idx || i == umpire2_idx);
+                DrawRectangleRec(umpireButton, isSelected ? DARKBLUE : LIGHTGRAY);
+                DrawText(umpires[i].name, umpireButton.x + 10, umpireButton.y + 5, 20, isSelected ? WHITE : BLACK);
+                if (CheckCollisionPointRec(GetMousePosition(), umpireButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (umpire1_idx == -1) {
+                        umpire1_idx = i;
+                    } else if (umpire2_idx == -1 && umpire1_idx != i) {
+                        umpire2_idx = i;
+                    } else {
+                        umpire1_idx = i;
+                        umpire2_idx = -1;
+                    }
+                }
+            }
+
+            Rectangle startButton = { GetScreenWidth() - 220, GetScreenHeight() - 60, 200, 40 };
+            DrawRectangleRec(startButton, DARKGREEN);
+            DrawTextBold("Start Match", startButton.x + 40, startButton.y + 10, 20, WHITE);
+
+            if (CheckCollisionPointRec(GetMousePosition(), startButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                if (ground_idx != -1 && umpire1_idx != -1 && umpire2_idx != -1) {
+                    strcpy(state->groundName, grounds[ground_idx].name);
+                    snprintf(state->umpireNames, sizeof(state->umpireNames), "%s, %s", umpires[umpire1_idx].name, umpires[umpire2_idx].name);
+                    ChangeScreen(state, SCREEN_GAMEPLAY);
+                }
             }
             break;
         }

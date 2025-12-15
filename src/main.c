@@ -17,6 +17,8 @@
 #include "history.c"
 #include "admin.c"
 #include "ui.c"
+#include "grounds.c"
+#include "umpires.c"
 
 void main_menu(const char *email, const char *name);
 

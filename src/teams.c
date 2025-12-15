@@ -3,6 +3,7 @@
 #include <string.h>
 #include "teams.h"
 #include "ui.h"
+#include "umpires.h"
 
 static const char *TEAMS_FILE = "Data/teams.dat";
 static const char *PLAYERS_FILE = "Data/players.dat";
@@ -407,58 +408,6 @@ static void list_umpires()
         line[strcspn(line, "\r\n")] = 0;
         if (strlen(line)) printf(" - %s\n", line);
     }
-    fclose(f);
-}
-
-Umpire* load_umpires(int *num_umpires) {
-    FILE *f = fopen(UMPIRES_FILE, "r");
-    if (!f) {
-        *num_umpires = 0;
-        return NULL;
-    }
-
-    // Count lines to allocate memory
-    char line[256];
-    int count = 0;
-    while (fgets(line, sizeof(line), f)) {
-        count++;
-    }
-    rewind(f);
-
-    if (count == 0) {
-        *num_umpires = 0;
-        fclose(f);
-        return NULL;
-    }
-
-    Umpire *umpires = (Umpire*)malloc(count * sizeof(Umpire));
-    if (!umpires) {
-        *num_umpires = 0;
-        fclose(f);
-        return NULL; // Allocation failed
-    }
-
-    int i = 0;
-    while (fgets(line, sizeof(line), f) && i < count) {
-        // New format: Name,Country,SinceYear,MatchesUmpired
-        if (sscanf(line, "%63[^,],%63[^,],%d,%d", umpires[i].name, umpires[i].country, &umpires[i].since_year, &umpires[i].matches_umpired) == 4) {
-            i++;
-        }
-    }
-
-    *num_umpires = i;
-    fclose(f);
-    return umpires;
-}
-
-void save_umpires(const Umpire *umpires, int num_umpires) {
-    FILE *f = fopen(UMPIRES_FILE, "w");
-    if (!f) return;
-
-    for (int i = 0; i < num_umpires; i++) {
-        fprintf(f, "%s,%s,%d,%d\n", umpires[i].name, umpires[i].country, umpires[i].since_year, umpires[i].matches_umpired);
-    }
-
     fclose(f);
 }
 

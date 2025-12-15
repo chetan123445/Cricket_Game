@@ -113,7 +113,7 @@ typedef struct {
     char summary[512];
 } Match;
 
-int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, int rain_possible, const char *umpire, char *out_summary, size_t summary_sz);
+int simulate_match(Team *teamA, Team *teamB, MatchFormat format, int autoplay, int rain_possible, const char *umpires, const char* ground, char *out_summary, size_t summary_sz);
 
 // Helper to get the next bowler (now accessible globally)
 Player* get_bowler(Team *team, int current_bowler_idx);
