@@ -41,6 +41,32 @@ typedef enum GameScreen {
     SCREEN_WC_SETUP
 } GameScreen;
 
+typedef struct {
+    Texture2D flagBatting;
+    Texture2D flagBowling;
+    Font font;
+    bool loaded;
+} ScorecardAssets;
+
+static ScorecardAssets scorecardAssets = {0};
+
+#define MAX_BALL_HISTORY 6
+static int ballHistory[MAX_BALL_HISTORY];
+static int ballHistoryCount = 0;
+static int designated_wk_idx = -1; // Moved to global static scope
+
+static void PushBallOutcome(int outcome)
+{
+    if (ballHistoryCount < MAX_BALL_HISTORY) {
+        ballHistory[ballHistoryCount++] = outcome;
+    } else {
+        for (int i = 1; i < MAX_BALL_HISTORY; i++) {
+            ballHistory[i - 1] = ballHistory[i];
+        }
+        ballHistory[MAX_BALL_HISTORY - 1] = outcome;
+    }
+}
+
 // Structure to hold all GUI state, including user info
 typedef struct {
     GameScreen currentScreen;
@@ -81,6 +107,20 @@ static void UpdateDrawManageUsersScreen(GuiState *state);
 static void UpdateDrawMatchSetupScreen(GuiState *state);
 static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameSounds *sounds);
 static void DrawTextBold(const char *text, int posX, int posY, int fontSize, Color color);
+
+static Texture2D LoadTeamFlag(const char *teamName)
+{
+    char path[256];
+    sprintf(path, "assets/flags/%s.png", teamName);
+
+    if (FileExists(path)) {
+        return LoadTexture(path);
+    }
+
+    // Fallback: empty texture
+    Texture2D dummy = {0};
+    return dummy;
+}
 
 // Helper for text boxes
 static void HandleTextBox(TextBox *box);
@@ -815,12 +855,97 @@ static void InitializeAudience() {
     }
 }
 
+void DrawScorecardUI(GameState *gameState, GuiState *guiState)
+{
+    Rectangle panel = { 20, GetScreenHeight() - 130 - 20, GetScreenWidth() - 40, 130 };
+    DrawRectangleRounded(panel, 0.2f, 10, (Color){20,20,20,220});
+    DrawRectangleRoundedLines(panel, 0.2f, 10, 2, GOLD);
+
+    // FLAGS
+    if (scorecardAssets.flagBatting.id) {
+        DrawTextureEx(scorecardAssets.flagBatting, (Vector2){panel.x + 30, panel.y + 30}, 0, 0.4f, WHITE);
+    }
+    if (scorecardAssets.flagBowling.id) {
+        DrawTextureEx(scorecardAssets.flagBowling, (Vector2){panel.x + panel.width - 90, panel.y + 30}, 0, 0.4f, WHITE);
+    }
+
+    // TEAM NAMES
+    DrawTextBold(gameState->batting_team->name, panel.x + 90, panel.y + 30, 26, WHITE);
+    DrawTextBold(gameState->bowling_team->name, panel.x + panel.width - 260, panel.y + 30, 22, GRAY);
+
+    // SCORE
+    DrawTextBold(
+        TextFormat("%d / %d", gameState->total_runs, gameState->wickets),
+        panel.x + 90, panel.y + 60, 34, YELLOW
+    );
+
+    DrawText(
+        TextFormat("Overs: %d.%d",
+            gameState->overs_completed,
+            gameState->balls_bowled_in_over),
+        panel.x + 90, panel.y + 95, 20, RAYWHITE
+    );
+
+    // BATSMEN
+    Player *s = &gameState->batting_team->players[gameState->striker_idx];
+    Player *ns = &gameState->batting_team->players[gameState->non_striker_idx];
+
+    DrawText(TextFormat("%s  %d(%d)", s->name, s->total_runs, s->balls_faced),
+             panel.x + panel.width/2 - 100, panel.y + 55, 20, WHITE);
+    DrawText(TextFormat("%s  %d(%d)", ns->name, ns->total_runs, ns->balls_faced),
+             panel.x + panel.width/2 - 100, panel.y + 80, 20, GRAY);
+
+    // BOWLER + BALL DOTS
+    Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
+    DrawText(TextFormat("Bowler: %s", bowler->name),
+             panel.x + panel.width - 260, panel.y + 65, 20, WHITE);
+
+    int x = panel.x + panel.width - 260;
+    int y = panel.y + 95;
+    for (int i = 0; i < ballHistoryCount; i++) {
+        Color c = WHITE;
+        if (ballHistory[i] == 0) c = GRAY;
+        if (ballHistory[i] == 4) c = BLUE;
+        if (ballHistory[i] == 6) c = GOLD;
+        if (ballHistory[i] < 0) c = RED;
+
+        DrawCircle(x + i * 20, y, 7, c);
+    }
+
+    // SECOND INNINGS TARGET
+    if (gameState->inning_num == 2) {
+        int ballsLeft =
+            (gameState->max_overs * 6) -
+            (gameState->overs_completed * 6 + gameState->balls_bowled_in_over);
+
+        DrawTextBold(
+            TextFormat("Need %d runs in %d balls",
+                gameState->target - gameState->total_runs,
+                ballsLeft),
+            panel.x + panel.width/2 - 140, panel.y + 105, 18, ORANGE
+        );
+    }
+}
+
 static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, GameSounds *sounds) {
-    const Rectangle backButton = { GetScreenWidth() - 170, GetScreenHeight() - 60, 150, 40 };
+    const Rectangle backButton = { GetScreenWidth() - 170, GetScreenHeight() - 200, 150, 40 };
+
+    // Load scorecard assets once
+    if (!scorecardAssets.loaded) {
+        scorecardAssets.flagBatting = LoadTeamFlag(gameState->batting_team->name);
+        scorecardAssets.flagBowling = LoadTeamFlag(gameState->bowling_team->name);
+        scorecardAssets.font = GetFontDefault();
+        scorecardAssets.loaded = true;
+    }
 
     if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         // Go back to the previous screen (likely the main menu)
         save_game_state(gameState, "Data/saves/resume.dat");
+        if (scorecardAssets.loaded) {
+            UnloadTexture(scorecardAssets.flagBatting);
+            UnloadTexture(scorecardAssets.flagBowling);
+            scorecardAssets.loaded = false;
+        }
         ChangeScreen(state, state->previousScreen);
     }
 
@@ -1073,6 +1198,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
             playMissMessageEndTime = GetTime() + 1.5; // Show message for 1.5 seconds
             PlaySound(sounds->dot_ball);
+            PushBallOutcome(0); // Record dot ball
             currentPhase = PHASE_IDLE; // Reset for the next ball
             animTimer = 0.0f;
             return; // Exit, as this ball is completed.
@@ -1127,8 +1253,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
             }
             // Log ball data
             log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
-                          striker, bowler, 0, OUTCOME_WICKET, dismissal_type, dismissal_fielder);
-
+                          striker, bowler, 0, OUTCOME_WICKET, NULL, NULL);
+            PushBallOutcome(-1); // Record wicket
             currentPhase = PHASE_IDLE; // Back to idle if out
         } else {
             // 3. Determine shot placement
@@ -1234,7 +1360,9 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                         fielder_out = &gameState->bowling_team->players[nearestFielderIndex];
                     }
                                         log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
-                                                      striker, bowler, 0, OUTCOME_WICKET, "Caught", fielder_out);                    showRunButton = true;
+                                                      striker, bowler, 0, OUTCOME_WICKET, "Caught", fielder_out);
+                    PushBallOutcome(-1); // Record wicket (catch)
+                    showRunButton = true;
                     // The ball will be stopped quickly, limiting runs. This is handled by the fielder reaching the ball.
                 } else { // In a gap
                     showRunButton = true;
@@ -1303,7 +1431,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                                       &gameState->batting_team->players[gameState->striker_idx], // Striker
                                       &gameState->bowling_team->players[gameState->bowler_idx], // Bowler
                                       runsThisBall, (runsThisBall > 0) ? OUTCOME_RUNS : OUTCOME_DOT, NULL, NULL);
-
+                        PushBallOutcome(runsThisBall); // Record runs for fielded ball
                         currentPhase = PHASE_IDLE; // Reset for the next ball
                     }
                 }
@@ -1368,7 +1496,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                               &gameState->batting_team->players[gameState->striker_idx], // Striker
                               &gameState->bowling_team->players[gameState->bowler_idx], // Bowler
                               runsThisBall, OUTCOME_RUNS, NULL, NULL);
-
+                PushBallOutcome(runsThisBall); // Record runs for boundary
                 currentPhase = PHASE_IDLE; // Allow next ball
                 boundaryAnimTimer = 0.0f;
             }
@@ -1413,6 +1541,12 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                 gameState->non_striker_idx = 1;
                 gameState->bowler_idx = -1; // Will be selected before first ball
 
+                ballHistoryCount = 0; // Clear ball history for new inning
+                designated_wk_idx = -1; // Reset designated wicketkeeper
+                UnloadTexture(scorecardAssets.flagBatting);
+                UnloadTexture(scorecardAssets.flagBowling);
+                scorecardAssets.loaded = false; // Mark as not loaded for next inning
+
                 currentPhase = PHASE_IDLE;
             }
             break;
@@ -1453,11 +1587,6 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         }
     }
     
-    // --- Draw Runs This Ball ---
-    char runsText[32];
-    sprintf(runsText, "This Ball: %d", runsThisBall);
-    DrawText(runsText, GetScreenWidth() - 200, GetScreenHeight() - 40, 20, YELLOW);
-
     // --- Draw Players ---
     Player *striker = &gameState->batting_team->players[gameState->striker_idx];
     Player *non_striker = &gameState->batting_team->players[gameState->non_striker_idx];
@@ -1573,23 +1702,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     }
 
     // --- Draw Scoreboard on top ---
-    char scoreText[100];
-    sprintf(scoreText, "%s: %d / %d", gameState->batting_team->name, gameState->total_runs, gameState->wickets);
-    DrawText(scoreText, 20, 20, 40, DARKGRAY);
-
-    char oversText[100];
-    sprintf(oversText, "Overs: %d.%d / %d", gameState->overs_completed, gameState->balls_bowled_in_over, gameState->max_overs);
-    DrawTextBold(oversText, 20, 70, 20, GRAY);
+    DrawScorecardUI(gameState, state);
     
-    // --- Bottom HUD ---
-    char totalScoreText[128];
-    if (gameState->target > 0) {
-        sprintf(totalScoreText, "Score: %d/%d (Target: %d)", gameState->total_runs, gameState->wickets, gameState->target);
-    } else {
-        sprintf(totalScoreText, "Score: %d/%d", gameState->total_runs, gameState->wickets);
-    }
-    DrawTextBold(totalScoreText, 20, GetScreenHeight() - 40, 30, WHITE);
-
     if (currentPhase == PHASE_IDLE && !isGameOver) {
         DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 70, 20, YELLOW);
     } else if (isGameOver) {
@@ -2687,7 +2801,6 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
     
     // State for the two-step playing XI selection
     static int squad_selection_turn = 0; // 0 for user's team, 1 for opponent's team
-    static int designated_wk_idx = -1; // -1 for no designated wicketkeeper
     static Team match_team_A, match_team_B; // Temporary teams to hold the final 11 players for the match
 
 

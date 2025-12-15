@@ -53,6 +53,7 @@ typedef struct {
     int total_wickets;
     int total_stumpings;
     int total_run_outs;
+    int balls_faced; // New member to track balls faced
 } Player;
 
 // Structure to represent a team
