@@ -2002,36 +2002,89 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBattingScorecard = false;
 
+        // --- Dynamic Column Width Calculation for Batting Scorecard ---
+        const char* batting_headers[] = { "#", "Player", "Status", "Runs", "Balls" };
+        float col_widths[5] = {0}; // Initialize with 0
+
+        // Determine max width for each column from headers
+        for (int i = 0; i < 5; i++) {
+            col_widths[i] = MeasureText(batting_headers[i], 18);
+        }
+
+        // Determine max width from player data
+        for (int i = 0; i < gameState->batting_team->num_players; ++i) {
+            Player *p = &gameState->batting_team->players[i];
+            
+            // # column
+            float num_width = MeasureText(TextFormat("%2d.", i + 1), 18);
+            if (num_width > col_widths[0]) col_widths[0] = num_width;
+
+            // Player column
+            float player_name_width = MeasureText(p->name, 18);
+            if (player_name_width > col_widths[1]) col_widths[1] = player_name_width;
+
+            // Status column
+            float status_width;
+            if (p->is_out) {
+                status_width = MeasureText(p->dismissal_info, 16); // Use smaller font size for dismissal info
+            } else {
+                status_width = MeasureText("Not Out", 18);
+            }
+            if (status_width > col_widths[2]) col_widths[2] = status_width;
+
+            // Runs column
+            float runs_width = MeasureText(TextFormat("%d", p->total_runs), 18);
+            if (runs_width > col_widths[3]) col_widths[3] = runs_width;
+
+            // Balls column
+            float balls_width = MeasureText(TextFormat("%d", p->balls_faced), 18);
+            if (balls_width > col_widths[4]) col_widths[4] = balls_width;
+        }
+
+        // Calculate total required width and available padding
+        float total_content_width = 0;
+        for (int i = 0; i < 5; i++) {
+            total_content_width += col_widths[i];
+        }
+
+        const float min_padding = 40; // Minimum padding between columns
+        float current_total_padding = min_padding * (5 - 1);
+        
+        float available_width = overlay.width - (overlay.width * 0.1f); // 10% margin from edges
+        float dynamic_padding = (available_width - total_content_width) / (5 - 1);
+
+        if (dynamic_padding < min_padding) dynamic_padding = min_padding; // Ensure minimum padding
+
+        // Calculate column x positions
+        float col_x[5];
+        float current_x = overlay.x + (overlay.width * 0.05f); // Start with 5% margin
+        for (int i = 0; i < 5; i++) {
+            col_x[i] = current_x;
+            current_x += col_widths[i] + dynamic_padding;
+        }
+
         // Column headers
         int y_start = overlay.y + 48;
-        int x_start = overlay.x + 20;
-        // New column positions
-        const int col_player = x_start + 50;
-        const int col_status = x_start + 300;
-        const int col_runs = x_start + 600;
-        const int col_balls = x_start + 700;
-
-
-        DrawText("#", x_start, y_start, 18, ICC_YELLOW);
-        DrawText("Player", col_player, y_start, 18, ICC_YELLOW);
-        DrawText("Status", col_status, y_start, 18, ICC_YELLOW);
-        DrawText("Runs", col_runs, y_start, 18, ICC_YELLOW);
-        DrawText("Balls", col_balls, y_start, 18, ICC_YELLOW);
-        DrawLine(x_start, y_start + 24, overlay.x + overlay.width - 20, y_start + 24, ICC_YELLOW); // Extend line
+        DrawText(batting_headers[0], col_x[0], y_start, 18, ICC_YELLOW);
+        DrawText(batting_headers[1], col_x[1], y_start, 18, ICC_YELLOW);
+        DrawText(batting_headers[2], col_x[2], y_start, 18, ICC_YELLOW);
+        DrawText(batting_headers[3], col_x[3], y_start, 18, ICC_YELLOW);
+        DrawText(batting_headers[4], col_x[4], y_start, 18, ICC_YELLOW);
+        DrawLine(overlay.x + 20, y_start + 24, overlay.x + overlay.width - 20, y_start + 24, ICC_YELLOW);
 
         // List batting players
         for (int i = 0; i < gameState->batting_team->num_players; ++i) {
             Player *p = &gameState->batting_team->players[i];
             int y_pos = y_start + 30 + i * 24;
-            DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, ICC_WHITE);
-            DrawText(p->name, col_player, y_pos, 18, ICC_WHITE);
+            DrawText(TextFormat("%2d.", i + 1), col_x[0], y_pos, 18, ICC_WHITE);
+            DrawText(p->name, col_x[1], y_pos, 18, ICC_WHITE);
             if (p->is_out) {
-                DrawText(p->dismissal_info, col_status, y_pos, 16, ICC_GRAY);
+                DrawText(p->dismissal_info, col_x[2], y_pos, 16, ICC_GRAY);
             } else {
-                DrawText("Not Out", col_status, y_pos, 18, ICC_GREEN);
+                DrawText("Not Out", col_x[2], y_pos, 18, ICC_GREEN);
             }
-            DrawText(TextFormat("%d", p->total_runs), col_runs, y_pos, 18, ICC_WHITE);
-            DrawText(TextFormat("%d", p->balls_faced), col_balls, y_pos, 18, ICC_WHITE);
+            DrawText(TextFormat("%d", p->total_runs), col_x[3], y_pos, 18, ICC_WHITE);
+            DrawText(TextFormat("%d", p->balls_faced), col_x[4], y_pos, 18, ICC_WHITE);
         }
     }
 
@@ -2044,32 +2097,82 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBowlingScorecard = false;
 
+        // --- Dynamic Column Width Calculation for Bowling Scorecard ---
+        const char* bowling_headers[] = { "#", "Player", "Overs", "Runs", "Wickets" };
+        float col_widths[5] = {0}; // Initialize with 0
+
+        // Determine max width for each column from headers
+        for (int i = 0; i < 5; i++) {
+            col_widths[i] = MeasureText(bowling_headers[i], 18);
+        }
+
+        // Determine max width from player data
+        for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
+            Player *p = &gameState->bowling_team->players[i];
+            if (p->bowling_skill > 0) { // Only consider players who can bowl
+                // # column
+                float num_width = MeasureText(TextFormat("%2d.", i + 1), 18);
+                if (num_width > col_widths[0]) col_widths[0] = num_width;
+
+                // Player column
+                float player_name_width = MeasureText(p->name, 18);
+                if (player_name_width > col_widths[1]) col_widths[1] = player_name_width;
+
+                // Overs column
+                float overs_width = MeasureText(TextFormat("%d", p->match_balls_bowled / 6), 18);
+                if (overs_width > col_widths[2]) col_widths[2] = overs_width;
+
+                // Runs column
+                float runs_width = MeasureText(TextFormat("%d", p->match_runs_conceded), 18);
+                if (runs_width > col_widths[3]) col_widths[3] = runs_width;
+
+                // Wickets column
+                float wickets_width = MeasureText(TextFormat("%d", p->match_wickets), 18);
+                if (wickets_width > col_widths[4]) col_widths[4] = wickets_width;
+            }
+        }
+        
+        // Calculate total required width and available padding
+        float total_content_width = 0;
+        for (int i = 0; i < 5; i++) {
+            total_content_width += col_widths[i];
+        }
+
+        const float min_padding = 40; // Minimum padding between columns
+        float current_total_padding = min_padding * (5 - 1);
+        
+        float available_width = overlay.width - (overlay.width * 0.1f); // 10% margin from edges
+        float dynamic_padding = (available_width - total_content_width) / (5 - 1);
+
+        if (dynamic_padding < min_padding) dynamic_padding = min_padding; // Ensure minimum padding
+
+        // Calculate column x positions
+        float col_x[5];
+        float current_x = overlay.x + (overlay.width * 0.05f); // Start with 5% margin
+        for (int i = 0; i < 5; i++) {
+            col_x[i] = current_x;
+            current_x += col_widths[i] + dynamic_padding;
+        }
+
         // Column headers
         int y_start = overlay.y + 48;
-        int x_start = overlay.x + 20;
-        // New column positions
-        const int col_player = x_start + 50;
-        const int col_overs = x_start + 350;
-        const int col_runs = x_start + 500;
-        const int col_wickets = x_start + 650;
-
-        DrawText("#", x_start, y_start, 18, ICC_YELLOW);
-        DrawText("Player", col_player, y_start, 18, ICC_YELLOW);
-        DrawText("Overs", col_overs, y_start, 18, ICC_YELLOW);
-        DrawText("Runs", col_runs, y_start, 18, ICC_YELLOW);
-        DrawText("Wickets", col_wickets, y_start, 18, ICC_YELLOW);
-        DrawLine(x_start, y_start + 24, overlay.x + overlay.width - 20, y_start + 24, ICC_YELLOW); // Extend line
+        DrawText(bowling_headers[0], col_x[0], y_start, 18, ICC_YELLOW);
+        DrawText(bowling_headers[1], col_x[1], y_start, 18, ICC_YELLOW);
+        DrawText(bowling_headers[2], col_x[2], y_start, 18, ICC_YELLOW);
+        DrawText(bowling_headers[3], col_x[3], y_start, 18, ICC_YELLOW);
+        DrawText(bowling_headers[4], col_x[4], y_start, 18, ICC_YELLOW);
+        DrawLine(overlay.x + 20, y_start + 24, overlay.x + overlay.width - 20, y_start + 24, ICC_YELLOW);
 
         // List bowling players
         for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
             Player *p = &gameState->bowling_team->players[i];
             if (p->bowling_skill > 0) { // Only show players who can bowl
                 int y_pos = y_start + 30 + i * 24;
-                DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, ICC_WHITE);
-                DrawText(p->name, col_player, y_pos, 18, ICC_WHITE);
-                DrawText(TextFormat("%d", p->match_balls_bowled / 6), col_overs, y_pos, 18, ICC_WHITE);
-                DrawText(TextFormat("%d", p->match_runs_conceded), col_runs, y_pos, 18, ICC_WHITE);
-                DrawText(TextFormat("%d", p->match_wickets), col_wickets, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%2d.", i + 1), col_x[0], y_pos, 18, ICC_WHITE);
+                DrawText(p->name, col_x[1], y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_balls_bowled / 6), col_x[2], y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_runs_conceded), col_x[3], y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_wickets), col_x[4], y_pos, 18, ICC_WHITE);
             }
         }
     }
