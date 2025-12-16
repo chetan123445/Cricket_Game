@@ -1,12 +1,12 @@
 batting_team_tag: 
 bowling_team_tag: 
-total_runs: 1
-wickets: 0
+total_runs: 2
+wickets: 1
 overs_completed: 1
 balls_bowled_in_over: 2
 current_powerplay: 0
-striker_idx: 0
-non_striker_idx: 1
+striker_idx: 1
+non_striker_idx: 2
 bowler_idx: 10
 selected_bowler_idx: -1
 awaiting_bowler_selection: 0

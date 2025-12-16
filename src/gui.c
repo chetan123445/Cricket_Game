@@ -860,8 +860,8 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
 {
     (void)guiState; // guiState not needed here yet - suppress unused-parameter warning
     Rectangle panel = { 20, GetScreenHeight() - 130 - 20, GetScreenWidth() - 40, 130 };
-    DrawRectangleRounded(panel, 0.2f, 10, (Color){20,20,20,220});
-    DrawRectangleRoundedLines(panel, 0.2f, 10, 2, ICC_YELLOW);
+    DrawRectangleRounded(panel, 0.2f, 10, ICC_BG);
+    DrawRectangleRoundedLines(panel, 0.2f, 10, 2, ICC_BLUE);
 
     // FLAGS
     if (scorecardAssets.flagBatting.id) {
@@ -872,13 +872,18 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     }
 
     // TEAM NAMES
-    DrawTextBold(gameState->batting_team->name, panel.x + 130, panel.y + 30, 26, ICC_WHITE);
+    DrawTextBold(gameState->batting_team->name, panel.x + 130, panel.y + 30, 26, ICC_YELLOW);
 
     // SCORE
-    DrawTextBold(
-        TextFormat("%d / %d", gameState->total_runs, gameState->wickets),
-        panel.x + 130, panel.y + 60, 24, ICC_WHITE
-    );
+    char runs_text[16];
+    sprintf(runs_text, "%d", gameState->total_runs);
+    DrawTextBold(runs_text, panel.x + 130, panel.y + 60, 24, ICC_WHITE);
+
+    char wickets_text[16];
+    sprintf(wickets_text, "/ %d", gameState->wickets);
+    // Measure the width of the runs text to position the wickets text correctly
+    float runs_text_width = MeasureText(runs_text, 24); // Assuming 24 is the font size
+    DrawTextBold(wickets_text, panel.x + 130 + runs_text_width, panel.y + 60, 24, ICC_RED);
 
     // Show striker and non-striker details (handle -1 safely)
     const char *strikerName = (gameState->striker_idx >= 0) ? gameState->batting_team->players[gameState->striker_idx].name : "(Select)";
@@ -894,7 +899,7 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
         TextFormat("Overs: %d.%d",
             gameState->overs_completed,
             gameState->balls_bowled_in_over),
-        panel.x + 130, panel.y + 95, 20, ICC_WHITE
+        panel.x + 130, panel.y + 95, 20, ICC_BLUE
     );
 
     // BATSMEN
@@ -917,10 +922,10 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     if (gameState->bowler_idx >= 0) {
         Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
         DrawText(TextFormat("Bowler: %s", bowler->name),
-                 panel.x + panel.width - 260, panel.y + 45, 20, ICC_WHITE);
+                 panel.x + panel.width - 260, panel.y + 45, 20, ICC_GREEN);
         // Show current bowler's match stats
         DrawText(TextFormat("Overs: %d  Runs: %d  W: %d", bowler->match_balls_bowled / 6, bowler->match_runs_conceded, bowler->match_wickets),
-                 panel.x + panel.width - 260, panel.y + 70, 16, ICC_GRAY);
+                 panel.x + panel.width - 260, panel.y + 70, 16, ICC_BLUE);
     } else {
         DrawText("Bowler: (Select)", panel.x + panel.width - 260, panel.y + 45, 20, ICC_WHITE);
     }
