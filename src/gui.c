@@ -880,10 +880,10 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     DrawTextBold(runs_text, panel.x + 130, panel.y + 60, 24, ICC_WHITE);
 
     char wickets_text[16];
-    sprintf(wickets_text, "/ %d", gameState->wickets);
+    sprintf(wickets_text, " / %d", gameState->wickets);
     // Measure the width of the runs text to position the wickets text correctly
     float runs_text_width = MeasureText(runs_text, 24); // Assuming 24 is the font size
-    DrawTextBold(wickets_text, panel.x + 130 + runs_text_width, panel.y + 60, 24, ICC_RED);
+    DrawTextBold(wickets_text, panel.x + 130 + runs_text_width, panel.y + 60, 24, ICC_WHITE);
 
     // Show striker and non-striker details (handle -1 safely)
     const char *strikerName = (gameState->striker_idx >= 0) ? gameState->batting_team->players[gameState->striker_idx].name : "(Select)";
@@ -2005,26 +2005,33 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         // Column headers
         int y_start = overlay.y + 48;
         int x_start = overlay.x + 20;
+        // New column positions
+        const int col_player = x_start + 50;
+        const int col_status = x_start + 300;
+        const int col_runs = x_start + 600;
+        const int col_balls = x_start + 700;
+
+
         DrawText("#", x_start, y_start, 18, ICC_YELLOW);
-        DrawText("Player", x_start + 40, y_start, 18, ICC_YELLOW);
-        DrawText("Status", x_start + 240, y_start, 18, ICC_YELLOW);
-        DrawText("Runs", x_start + 440, y_start, 18, ICC_YELLOW);
-        DrawText("Balls", x_start + 520, y_start, 18, ICC_YELLOW);
-        DrawLine(x_start, y_start + 24, x_start + 580, y_start + 24, ICC_YELLOW);
+        DrawText("Player", col_player, y_start, 18, ICC_YELLOW);
+        DrawText("Status", col_status, y_start, 18, ICC_YELLOW);
+        DrawText("Runs", col_runs, y_start, 18, ICC_YELLOW);
+        DrawText("Balls", col_balls, y_start, 18, ICC_YELLOW);
+        DrawLine(x_start, y_start + 24, overlay.x + overlay.width - 20, y_start + 24, ICC_YELLOW); // Extend line
 
         // List batting players
         for (int i = 0; i < gameState->batting_team->num_players; ++i) {
             Player *p = &gameState->batting_team->players[i];
             int y_pos = y_start + 30 + i * 24;
             DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, ICC_WHITE);
-            DrawText(p->name, x_start + 40, y_pos, 18, ICC_WHITE);
+            DrawText(p->name, col_player, y_pos, 18, ICC_WHITE);
             if (p->is_out) {
-                DrawText(p->dismissal_info, x_start + 240, y_pos, 16, ICC_GRAY);
+                DrawText(p->dismissal_info, col_status, y_pos, 16, ICC_GRAY);
             } else {
-                DrawText("Not Out", x_start + 240, y_pos, 18, ICC_GREEN);
+                DrawText("Not Out", col_status, y_pos, 18, ICC_GREEN);
             }
-            DrawText(TextFormat("%d", p->total_runs), x_start + 440, y_pos, 18, ICC_WHITE);
-            DrawText(TextFormat("%d", p->balls_faced), x_start + 520, y_pos, 18, ICC_WHITE);
+            DrawText(TextFormat("%d", p->total_runs), col_runs, y_pos, 18, ICC_WHITE);
+            DrawText(TextFormat("%d", p->balls_faced), col_balls, y_pos, 18, ICC_WHITE);
         }
     }
 
@@ -2040,12 +2047,18 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         // Column headers
         int y_start = overlay.y + 48;
         int x_start = overlay.x + 20;
+        // New column positions
+        const int col_player = x_start + 50;
+        const int col_overs = x_start + 350;
+        const int col_runs = x_start + 500;
+        const int col_wickets = x_start + 650;
+
         DrawText("#", x_start, y_start, 18, ICC_YELLOW);
-        DrawText("Player", x_start + 40, y_start, 18, ICC_YELLOW);
-        DrawText("Overs", x_start + 240, y_start, 18, ICC_YELLOW);
-        DrawText("Runs", x_start + 320, y_start, 18, ICC_YELLOW);
-        DrawText("Wickets", x_start + 400, y_start, 18, ICC_YELLOW);
-        DrawLine(x_start, y_start + 24, x_start + 480, y_start + 24, ICC_YELLOW);
+        DrawText("Player", col_player, y_start, 18, ICC_YELLOW);
+        DrawText("Overs", col_overs, y_start, 18, ICC_YELLOW);
+        DrawText("Runs", col_runs, y_start, 18, ICC_YELLOW);
+        DrawText("Wickets", col_wickets, y_start, 18, ICC_YELLOW);
+        DrawLine(x_start, y_start + 24, overlay.x + overlay.width - 20, y_start + 24, ICC_YELLOW); // Extend line
 
         // List bowling players
         for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
@@ -2053,10 +2066,10 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
             if (p->bowling_skill > 0) { // Only show players who can bowl
                 int y_pos = y_start + 30 + i * 24;
                 DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, ICC_WHITE);
-                DrawText(p->name, x_start + 40, y_pos, 18, ICC_WHITE);
-                DrawText(TextFormat("%d", p->match_balls_bowled / 6), x_start + 240, y_pos, 18, ICC_WHITE);
-                DrawText(TextFormat("%d", p->match_runs_conceded), x_start + 320, y_pos, 18, ICC_WHITE);
-                DrawText(TextFormat("%d", p->match_wickets), x_start + 400, y_pos, 18, ICC_WHITE);
+                DrawText(p->name, col_player, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_balls_bowled / 6), col_overs, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_runs_conceded), col_runs, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_wickets), col_wickets, y_pos, 18, ICC_WHITE);
             }
         }
     }
