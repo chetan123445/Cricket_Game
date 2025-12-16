@@ -1633,6 +1633,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                             facing->total_runs += runsThisBall;
                             facing->balls_faced++;
                         }
+                        gameState->total_runs += runsThisBall;
 
                         // Rotate strike immediately on odd runs
                         if (runsThisBall % 2 != 0) {
@@ -1718,6 +1719,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                     facing->total_runs += runsThisBall;
                     facing->balls_faced++;
                 }
+                gameState->total_runs += runsThisBall;
 
                 // Rotate strike immediately on odd runs
                 if (runsThisBall % 2 != 0) {
