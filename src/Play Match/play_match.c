@@ -73,7 +73,11 @@ BallOutcome simulate_one_ball(GameState *state) {
             outcome.runs = 0;
             state->wickets++;
             bowler->total_wickets++;
-            state->striker_idx = (state->striker_idx > state->non_striker_idx) ? state->striker_idx + 1 : state->non_striker_idx + 1;
+            // Defer batsman replacement to UI
+            state->awaiting_batsman_selection = true;
+            int candidate = (state->striker_idx > state->non_striker_idx) ? state->striker_idx + 1 : state->non_striker_idx + 1;
+            if (candidate < state->batting_team->num_players) state->next_batsman_idx = candidate;
+            state->striker_idx = -1; // mark striker as out until UI sets the incoming batsman
 
         } else {
             // It's a dot ball
@@ -84,7 +88,18 @@ BallOutcome simulate_one_ball(GameState *state) {
 
     // --- Update Game State ---
     state->balls_bowled_in_over++;
-    
+
+    // Update per-player match stats for this delivery
+    if (state->bowler_idx >= 0) {
+        Player *cb = &state->bowling_team->players[state->bowler_idx];
+        cb->match_balls_bowled++;
+        if (outcome.runs > 0) cb->match_runs_conceded += outcome.runs;
+        if (outcome.type == OUTCOME_WICKET) cb->match_wickets++;
+    }
+    if (striker) {
+        striker->balls_faced++;
+    }
+
     // Strike rotation will now be handled by the GUI after runs are taken.
     // if (outcome.runs % 2 != 0) {
     //     int temp = state->striker_idx;
@@ -112,21 +127,11 @@ BallOutcome simulate_one_ball(GameState *state) {
         }
         // --- END RAIN LOGIC ---
 
-        // Select a new bowler
-        int current_bowler_p_idx = -1;
-        for(int i=0; i<state->bowling_team->num_players; ++i) {
-            if(&state->bowling_team->players[i] == bowler) {
-                current_bowler_p_idx = i;
-                break;
-            }
-        }
-        Player *new_bowler = get_bowler(state->bowling_team, current_bowler_p_idx);
-        for(int i=0; i<state->bowling_team->num_players; ++i) {
-             if(&state->bowling_team->players[i] == new_bowler) {
-                state->bowler_idx = i;
-                break;
-            }
-        }
+        // End of over: record last bowler and defer next bowler choice to UI
+        state->last_bowler_idx = state->bowler_idx;
+        state->awaiting_bowler_selection = true;
+        state->selected_bowler_idx = -1;
+        state->bowler_idx = -1;
     }
 
     return outcome;
@@ -142,19 +147,23 @@ static int simulate_innings(Team *batting_team, Team *bowling_team, int max_over
     state.wickets = 0;
     state.overs_completed = 0;
     state.balls_bowled_in_over = 0;
-    state.striker_idx = 0;
-    state.non_striker_idx = 1;
-    state.bowler_idx = -1; // Will be set before first ball
+    // Defer initial batsman selection to UI
+    state.striker_idx = -1;
+    state.non_striker_idx = -1;
+    state.awaiting_batsman_selection = true;
+    state.next_batsman_idx = 2;
+
+    // Defer initial bowler selection to UI
+    state.bowler_idx = -1; // No bowler until user selects
+    state.awaiting_bowler_selection = true;
+    state.selected_bowler_idx = -1;
     state.max_overs = max_overs;
     state.target = target;
 
-    // Initial bowler selection
-    Player* initial_bowler = get_bowler(bowling_team, -1);
-     for(int i=0; i<bowling_team->num_players; ++i) {
-        if(&bowling_team->players[i] == initial_bowler) {
-            state.bowler_idx = i;
-            break;
-        }
+    // No automatic initial bowler selection - defer to selection UI or caller
+    if (state.bowler_idx == -1) {
+        state.awaiting_bowler_selection = true;
+        state.selected_bowler_idx = -1;
     }
 
     // --- Main Innings Loop ---
@@ -171,8 +180,8 @@ static int simulate_innings(Team *batting_team, Team *bowling_team, int max_over
              break; // Target chased
         }
         
-        Player *striker = &state.batting_team->players[state.striker_idx];
-        Player *bowler = &state.bowling_team->players[state.bowler_idx];
+        Player *striker = (state->striker_idx >= 0) ? &state.batting_team->players[state.striker_idx] : NULL;
+        Player *bowler = (state->bowler_idx >= 0) ? &state->bowling_team->players[state.bowler_idx] : NULL;
 
         if (state.balls_bowled_in_over == 0) {
             printf("\nOver %d, %s to bowl. Score: %d/%d\n", state.overs_completed + 1, bowler->name, state.total_runs, state.wickets);
@@ -201,6 +210,15 @@ static int simulate_innings(Team *batting_team, Team *bowling_team, int max_over
 
             // Manually update state based on choice
             state.balls_bowled_in_over++;
+            // Update per-ball stats for bowler and batsman
+            if (state.bowler_idx >= 0) {
+                Player *cb = &state.bowling_team->players[state.bowler_idx];
+                cb->match_balls_bowled++;
+                if (outcome.type == OUTCOME_RUNS) cb->match_runs_conceded += outcome.runs;
+                if (outcome.type == OUTCOME_WICKET) cb->match_wickets++;
+            }
+            if (striker) striker->balls_faced++;
+
             if (outcome.type == OUTCOME_RUNS) {
                 state.total_runs += outcome.runs;
                 striker->total_runs += outcome.runs;
@@ -214,10 +232,27 @@ static int simulate_innings(Team *batting_team, Team *bowling_team, int max_over
                 state.overs_completed++;
                 state.balls_bowled_in_over = 0;
                 int temp = state.striker_idx; state.striker_idx = state.non_striker_idx; state.non_striker_idx = temp;
-                Player* new_bowler = get_bowler(bowling_team, state.bowler_idx);
-                 for(int i=0; i<bowling_team->num_players; ++i) {
-                    if(&bowling_team->players[i] == new_bowler) { state.bowler_idx = i; break; }
+
+                // Instead of auto-selecting, prompt user for next bowler (no automatic rotation)
+                state.last_bowler_idx = state.bowler_idx;
+                state.bowler_idx = -1;
+
+                printf("\nEnd of over. Select next bowler by index:\n");
+                for (int i = 0; i < bowling_team->num_players; i++) {
+                    Player *p = &bowling_team->players[i];
+                    if (p->bowling_skill <= 0) continue;
+                    bool disabled = false;
+                    if (i == state.last_bowler_idx) { disabled = true; }
+                    if (p->match_balls_bowled >= 60) { disabled = true; }
+                    printf("%d: %s (Overs:%d Runs:%d W:%d)%s\n", i, p->name, p->match_balls_bowled/6, p->match_runs_conceded, p->match_wickets, disabled ? " [disabled]" : "");
                 }
+                int sel = -1;
+                while (sel < 0 || sel >= bowling_team->num_players || bowling_team->players[sel].bowling_skill <= 0 || (sel == state.last_bowler_idx) || (bowling_team->players[sel].match_balls_bowled >= 60)) {
+                    printf("Enter bowler index: ");
+                    if (scanf("%d", &sel) != 1) { clean_stdin(); sel = -1; }
+                    clean_stdin();
+                }
+                state.bowler_idx = sel;
             }
         }
         

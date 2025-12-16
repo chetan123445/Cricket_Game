@@ -54,6 +54,15 @@ typedef struct {
     int total_stumpings;
     int total_run_outs;
     int balls_faced; // New member to track balls faced
+
+    // Per-match stats (reset at innings start)
+    int match_runs_conceded;  // runs conceded while bowling in current innings
+    int match_balls_bowled;   // balls bowled in current innings
+    int match_wickets;        // wickets taken in current innings
+
+    // Dismissal info for batsman in current innings
+    char dismissal_info[128];
+    bool is_out;
 } Player;
 
 // Structure to represent a team

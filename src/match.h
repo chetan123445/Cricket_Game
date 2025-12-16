@@ -74,6 +74,15 @@ typedef struct {
     int striker_idx;
     int non_striker_idx;
     int bowler_idx;
+    int last_bowler_idx; // index of the bowler who bowled the previous over (-1 if none)
+
+    // New fields for explicit selection UI
+    int selected_bowler_idx;            // temporary/selected index for bowler UI
+    bool awaiting_bowler_selection;     // when true, GUI must prompt for bowler selection
+
+    bool awaiting_batsman_selection;    // when true, GUI prompts for replacement batsman
+    int next_batsman_idx;               // index reserved for next batsman (if needed)
+
     FieldingSetup fielding_setup;
 
     GameplayMode gameplay_mode; // Current gameplay mode
