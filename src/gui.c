@@ -1114,38 +1114,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         showBowlingScorecard = true;
     }
 
-    // Draw overlay scorecards when requested
-    if (showBattingScorecard) {
-        Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
-        DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
-        DrawTextBold("Batting Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
-        // Close button
-        Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
-        DrawRectangleRec(closeBtn, RED);
-        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
-        if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBattingScorecard = false;
-
-        // List batting players
-        for (int i = 0; i < gameState->batting_team->num_players; ++i) {
-            Player *p = &gameState->batting_team->players[i];
-            DrawText(TextFormat("%2d. %s %s %d(%d)", i+1, (p->is_out ? "(Out)" : ""), p->name, p->total_runs, p->balls_faced), overlay.x + 20, overlay.y + 48 + i*24, 18, WHITE);
-        }
-    }
-
-    if (showBowlingScorecard) {
-        Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
-        DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
-        DrawTextBold("Bowling Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
-        Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
-        DrawRectangleRec(closeBtn, RED);
-        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
-        if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBowlingScorecard = false;
-
-        for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
-            Player *p = &gameState->bowling_team->players[i];
-            DrawText(TextFormat("%2d. %s O:%d R:%d W:%d", i+1, p->name, p->match_balls_bowled/6, p->match_runs_conceded, p->match_wickets), overlay.x + 20, overlay.y + 48 + i*24, 18, WHITE);
-        }
-    }
+ 
 
 
     if (gameState->gameplay_mode == GAMEPLAY_MODE_PLAYING) {
@@ -1981,6 +1950,76 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     }
     if (GetTime() < outcomeMessageEndTime) {
         DrawText(outcomeMessage, GetScreenWidth()/2 - MeasureText(outcomeMessage, 40)/2, GetScreenHeight()/2, 40, ORANGE);
+    }
+
+    // Draw overlay scorecards when requested
+    if (showBattingScorecard) {
+        Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
+        DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
+        DrawTextBold("Batting Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
+        // Close button
+        Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
+        DrawRectangleRec(closeBtn, RED);
+        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBattingScorecard = false;
+
+        // Column headers
+        int y_start = overlay.y + 48;
+        int x_start = overlay.x + 20;
+        DrawText("#", x_start, y_start, 18, GOLD);
+        DrawText("Player", x_start + 40, y_start, 18, GOLD);
+        DrawText("Status", x_start + 240, y_start, 18, GOLD);
+        DrawText("Runs", x_start + 440, y_start, 18, GOLD);
+        DrawText("Balls", x_start + 520, y_start, 18, GOLD);
+        DrawLine(x_start, y_start + 24, x_start + 580, y_start + 24, GOLD);
+
+        // List batting players
+        for (int i = 0; i < gameState->batting_team->num_players; ++i) {
+            Player *p = &gameState->batting_team->players[i];
+            int y_pos = y_start + 30 + i * 24;
+            DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, WHITE);
+            DrawText(p->name, x_start + 40, y_pos, 18, WHITE);
+            if (p->is_out) {
+                DrawText(p->dismissal_info, x_start + 240, y_pos, 16, LIGHTGRAY);
+            } else {
+                DrawText("Not Out", x_start + 240, y_pos, 18, GREEN);
+            }
+            DrawText(TextFormat("%d", p->total_runs), x_start + 440, y_pos, 18, WHITE);
+            DrawText(TextFormat("%d", p->balls_faced), x_start + 520, y_pos, 18, WHITE);
+        }
+    }
+
+    if (showBowlingScorecard) {
+        Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
+        DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
+        DrawTextBold("Bowling Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
+        Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
+        DrawRectangleRec(closeBtn, RED);
+        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBowlingScorecard = false;
+
+        // Column headers
+        int y_start = overlay.y + 48;
+        int x_start = overlay.x + 20;
+        DrawText("#", x_start, y_start, 18, GOLD);
+        DrawText("Player", x_start + 40, y_start, 18, GOLD);
+        DrawText("Overs", x_start + 240, y_start, 18, GOLD);
+        DrawText("Runs", x_start + 320, y_start, 18, GOLD);
+        DrawText("Wickets", x_start + 400, y_start, 18, GOLD);
+        DrawLine(x_start, y_start + 24, x_start + 480, y_start + 24, GOLD);
+
+        // List bowling players
+        for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
+            Player *p = &gameState->bowling_team->players[i];
+            if (p->bowling_skill > 0) { // Only show players who can bowl
+                int y_pos = y_start + 30 + i * 24;
+                DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, WHITE);
+                DrawText(p->name, x_start + 40, y_pos, 18, WHITE);
+                DrawText(TextFormat("%d", p->match_balls_bowled / 6), x_start + 240, y_pos, 18, WHITE);
+                DrawText(TextFormat("%d", p->match_runs_conceded), x_start + 320, y_pos, 18, WHITE);
+                DrawText(TextFormat("%d", p->match_wickets), x_start + 400, y_pos, 18, WHITE);
+            }
+        }
     }
     EndDrawing();
 }
