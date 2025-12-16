@@ -927,14 +927,37 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
 
     int x = panel.x + panel.width - 260;
     int y = panel.y + 115; // moved down to avoid overlap with bowler stats
+    const int circle_radius = 10;
+    const int text_font_size = 12; // Adjust as needed for size 10 circle
     for (int i = 0; i < ballHistoryCount; i++) {
         Color c = ICC_WHITE;
-        if (ballHistory[i] == 0) c = ICC_GRAY;
-        if (ballHistory[i] == 4) c = ICC_BLUE;
-        if (ballHistory[i] == 6) c = ICC_YELLOW;
-        if (ballHistory[i] < 0) c = ICC_RED;
+        char ball_outcome_text[4]; // To hold "0", "1", "4", "6", "W" (for -1)
+        Color text_color = ICC_WHITE; // Default text color
 
-        DrawCircle(x + i * 20, y, 7, c);
+        if (ballHistory[i] == 0) {
+            c = ICC_GRAY;
+            strcpy(ball_outcome_text, "0");
+        } else if (ballHistory[i] == 4) {
+            c = ICC_BLUE;
+            strcpy(ball_outcome_text, "4");
+        } else if (ballHistory[i] == 6) {
+            c = ICC_YELLOW;
+            strcpy(ball_outcome_text, "6");
+        } else if (ballHistory[i] < 0) { // Wicket
+            c = ICC_RED;
+            strcpy(ball_outcome_text, "W");
+        } else { // Singles, twos, threes - these circles will be ICC_WHITE
+            c = ICC_WHITE;
+            text_color = BLACK; // Set text to BLACK for better contrast on ICC_WHITE circle
+            sprintf(ball_outcome_text, "%d", ballHistory[i]);
+        }
+
+        Vector2 circle_center = {x + i * 25, y}; // Increased spacing between circles
+        DrawCircleV(circle_center, circle_radius, c);
+
+        // Center the text inside the circle
+        float text_width = MeasureText(ball_outcome_text, text_font_size);
+        DrawText(ball_outcome_text, circle_center.x - text_width / 2, circle_center.y - text_font_size / 2, text_font_size, text_color);
     }
 
     // SECOND INNINGS TARGET
@@ -1157,6 +1180,9 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
     // If awaiting user selection for bowler or batsman, show selection UI and skip the rest of gameplay drawing/logic
     if (gameState->awaiting_bowler_selection) {
+        // Clear ball history when bowler selection is awaited (start of a new over)
+        memset(ballHistory, 0, sizeof(ballHistory));
+        ballHistoryCount = 0;
         // Draw a simple selection overlay
         ClearBackground(ICC_BG);
         // Use a dedicated function for cleaner drawing
@@ -1339,6 +1365,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
             if (gameState->balls_bowled_in_over >= 6) {
                 gameState->overs_completed++;
                 gameState->balls_bowled_in_over = 0;
+
                 // Rotate strike at end of over
                 int temp = gameState->striker_idx;
                 gameState->striker_idx = gameState->non_striker_idx;
@@ -1403,6 +1430,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
             if (gameState->balls_bowled_in_over >= 6) {
                 gameState->overs_completed++;
                 gameState->balls_bowled_in_over = 0;
+
                 // Rotate strike at end of over
                 int temp = gameState->striker_idx;
                 gameState->striker_idx = gameState->non_striker_idx;
@@ -1508,6 +1536,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                     if (gameState->balls_bowled_in_over >= 6) {
                         gameState->overs_completed++;
                         gameState->balls_bowled_in_over = 0;
+
                         // Rotate strike at end of over
                         int temp = gameState->striker_idx;
                         gameState->striker_idx = gameState->non_striker_idx;
@@ -1572,6 +1601,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                         if (gameState->balls_bowled_in_over >= 6) {
                             gameState->overs_completed++;
                             gameState->balls_bowled_in_over = 0;
+
                             // Rotate strike at end of over
                             int temp = gameState->striker_idx;
                             gameState->striker_idx = gameState->non_striker_idx;
@@ -1658,6 +1688,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                 if (gameState->balls_bowled_in_over >= 6) {
                     gameState->overs_completed++;
                     gameState->balls_bowled_in_over = 0;
+
                     // Rotate strike at end of over
                     int temp = gameState->striker_idx;
                     gameState->striker_idx = gameState->non_striker_idx;
@@ -1745,6 +1776,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                 gameState->wickets = 0;
                 gameState->overs_completed = 0;
                 gameState->balls_bowled_in_over = 0;
+
                 gameState->striker_idx = 0;
                 gameState->non_striker_idx = 1;
                 gameState->bowler_idx = -1; // Will be selected before first ball
