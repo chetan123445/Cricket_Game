@@ -879,8 +879,18 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     // SCORE
     DrawTextBold(
         TextFormat("%d / %d", gameState->total_runs, gameState->wickets),
-        panel.x + 130, panel.y + 60, 34, YELLOW
+        panel.x + 130, panel.y + 60, 24, WHITE
     );
+
+    // Show striker and non-striker details (handle -1 safely)
+    const char *strikerName = (gameState->striker_idx >= 0) ? gameState->batting_team->players[gameState->striker_idx].name : "(Select)";
+    const char *nonStrikerName = (gameState->non_striker_idx >= 0) ? gameState->batting_team->players[gameState->non_striker_idx].name : "(Select)";
+    int strikerRuns = (gameState->striker_idx >= 0) ? gameState->batting_team->players[gameState->striker_idx].total_runs : 0;
+    int strikerBalls = (gameState->striker_idx >= 0) ? gameState->batting_team->players[gameState->striker_idx].balls_faced : 0;
+    int nonStrikerRuns = (gameState->non_striker_idx >= 0) ? gameState->batting_team->players[gameState->non_striker_idx].total_runs : 0;
+    int nonStrikerBalls = (gameState->non_striker_idx >= 0) ? gameState->batting_team->players[gameState->non_striker_idx].balls_faced : 0;
+
+
 
     DrawText(
         TextFormat("Overs: %d.%d",
@@ -890,28 +900,35 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     );
 
     // BATSMEN
-    Player *s = &gameState->batting_team->players[gameState->striker_idx];
-    Player *ns = &gameState->batting_team->players[gameState->non_striker_idx];
-
-    DrawText(TextFormat("%s  %d(%d)", s->name, s->total_runs, s->balls_faced),
-             panel.x + panel.width/2 - 100, panel.y + 55, 20, WHITE);
-    DrawText(TextFormat("%s  %d(%d)", ns->name, ns->total_runs, ns->balls_faced),
-             panel.x + panel.width/2 - 100, panel.y + 80, 20, GRAY);
+    if (gameState->striker_idx >= 0) {
+        Player *s = &gameState->batting_team->players[gameState->striker_idx];
+        DrawText(TextFormat("%s  %d(%d)", s->name, s->total_runs, s->balls_faced),
+                 panel.x + panel.width/2 - 100, panel.y + 55, 20, WHITE);
+    } else {
+        DrawText("(Select Striker)", panel.x + panel.width/2 - 100, panel.y + 55, 20, WHITE);
+    }
+    if (gameState->non_striker_idx >= 0) {
+        Player *ns = &gameState->batting_team->players[gameState->non_striker_idx];
+        DrawText(TextFormat("%s  %d(%d)", ns->name, ns->total_runs, ns->balls_faced),
+                 panel.x + panel.width/2 - 100, panel.y + 80, 20, GRAY);
+    } else {
+        DrawText("(Select Non-Striker)", panel.x + panel.width/2 - 100, panel.y + 80, 20, GRAY);
+    }
 
     // BOWLER + BALL DOTS
     if (gameState->bowler_idx >= 0) {
         Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
         DrawText(TextFormat("Bowler: %s", bowler->name),
-                 panel.x + panel.width - 260, panel.y + 65, 20, WHITE);
+                 panel.x + panel.width - 260, panel.y + 45, 20, WHITE);
         // Show current bowler's match stats
         DrawText(TextFormat("Overs: %d  Runs: %d  W: %d", bowler->match_balls_bowled / 6, bowler->match_runs_conceded, bowler->match_wickets),
-                 panel.x + panel.width - 260, panel.y + 90, 16, LIGHTGRAY);
+                 panel.x + panel.width - 260, panel.y + 70, 16, LIGHTGRAY);
     } else {
-        DrawText("Bowler: (Select)", panel.x + panel.width - 260, panel.y + 65, 20, WHITE);
+        DrawText("Bowler: (Select)", panel.x + panel.width - 260, panel.y + 45, 20, WHITE);
     }
 
     int x = panel.x + panel.width - 260;
-    int y = panel.y + 95;
+    int y = panel.y + 115; // moved down to avoid overlap with bowler stats
     for (int i = 0; i < ballHistoryCount; i++) {
         Color c = WHITE;
         if (ballHistory[i] == 0) c = GRAY;
@@ -1076,6 +1093,58 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         DrawTextBold(umpire2, x_offset, editFieldButton.y + editFieldButton.height + 80, 20, WHITE);
     } else {
         DrawTextBold(state->umpireNames, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, WHITE);
+    }
+
+    // Buttons to open the full scorecards
+    static bool showBattingScorecard = false;
+    static bool showBowlingScorecard = false;
+
+    Rectangle battingCardBtn = { x_offset, editFieldButton.y + editFieldButton.height + 110, 160, 30 };
+    Rectangle bowlingCardBtn = { x_offset + 170, editFieldButton.y + editFieldButton.height + 110, 160, 30 };
+
+    DrawRectangleRec(battingCardBtn, DARKBLUE);
+    DrawText("Batting Scorecard", battingCardBtn.x + 10, battingCardBtn.y + 6, 16, WHITE);
+    if (CheckCollisionPointRec(GetMousePosition(), battingCardBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        showBattingScorecard = true;
+    }
+
+    DrawRectangleRec(bowlingCardBtn, DARKBLUE);
+    DrawText("Bowling Scorecard", bowlingCardBtn.x + 10, bowlingCardBtn.y + 6, 16, WHITE);
+    if (CheckCollisionPointRec(GetMousePosition(), bowlingCardBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        showBowlingScorecard = true;
+    }
+
+    // Draw overlay scorecards when requested
+    if (showBattingScorecard) {
+        Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
+        DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
+        DrawTextBold("Batting Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
+        // Close button
+        Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
+        DrawRectangleRec(closeBtn, RED);
+        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBattingScorecard = false;
+
+        // List batting players
+        for (int i = 0; i < gameState->batting_team->num_players; ++i) {
+            Player *p = &gameState->batting_team->players[i];
+            DrawText(TextFormat("%2d. %s %s %d(%d)", i+1, (p->is_out ? "(Out)" : ""), p->name, p->total_runs, p->balls_faced), overlay.x + 20, overlay.y + 48 + i*24, 18, WHITE);
+        }
+    }
+
+    if (showBowlingScorecard) {
+        Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
+        DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
+        DrawTextBold("Bowling Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
+        Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
+        DrawRectangleRec(closeBtn, RED);
+        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
+        if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBowlingScorecard = false;
+
+        for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
+            Player *p = &gameState->bowling_team->players[i];
+            DrawText(TextFormat("%2d. %s O:%d R:%d W:%d", i+1, p->name, p->match_balls_bowled/6, p->match_runs_conceded, p->match_wickets), overlay.x + 20, overlay.y + 48 + i*24, 18, WHITE);
+        }
     }
 
 
@@ -1410,8 +1479,6 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                     ballVelocityY = 80.0f;
                     PlaySound(sounds->four);
                 }
-                gameState->total_runs += runsThisBall;
-                striker->total_runs += runsThisBall;
                 celebration_end_time = GetTime() + 2.0;
                 currentPhase = PHASE_BOUNDARY_ANIMATION;
                 animTimer = 0.0f;
@@ -1464,6 +1531,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                         cb->match_balls_bowled++;
                         cb->match_wickets++;
                     }
+                    // Count ball for striker even on wicket
                     if (striker) striker->balls_faced++;
 
                     if (gameState->balls_bowled_in_over >= 6) {
@@ -1551,12 +1619,32 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                             gameState->selected_bowler_idx = -1;
                             gameState->bowler_idx = -1;
                         }
-                        // Update bowler's per-match stats and log ball data for fielded ball
+                        // Update striker stats for the ball (capture current striker before any strike rotation)
+                        int facing_idx = gameState->striker_idx;
+                        Player *facing = NULL;
+                        if (facing_idx >= 0) facing = &gameState->batting_team->players[facing_idx];
+
+                        // Update bowler's per-match stats
                         if (runsThisBall > 0 && prevBowler) prevBowler->match_runs_conceded += runsThisBall;
                         if (prevBowler) prevBowler->match_balls_bowled++;
+
+                        // Update batsman stats
+                        if (facing) {
+                            facing->total_runs += runsThisBall;
+                            facing->balls_faced++;
+                        }
+
+                        // Rotate strike immediately on odd runs
+                        if (runsThisBall % 2 != 0) {
+                            int tmp = gameState->striker_idx;
+                            gameState->striker_idx = gameState->non_striker_idx;
+                            gameState->non_striker_idx = tmp;
+                        }
+
+                        // Log using the original facing batsman and previous bowler
                         log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
-                                      &gameState->batting_team->players[gameState->striker_idx], // Striker
-                                      prevBowler ? prevBowler : NULL, // Bowler
+                                      facing ? facing : NULL,
+                                      prevBowler ? prevBowler : NULL,
                                       runsThisBall, (runsThisBall > 0) ? OUTCOME_RUNS : OUTCOME_DOT, NULL, NULL);
                         PushBallOutcome(runsThisBall); // Record runs for fielded ball
                         currentPhase = PHASE_IDLE; // Reset for the next ball
@@ -1616,12 +1704,32 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
                     gameState->selected_bowler_idx = -1;
                     gameState->bowler_idx = -1;
                 }
-                // Update bowler stats and log ball data for boundary
+                // Update striker stats for the ball (capture current striker before any strike rotation)
+                int facing_idx = gameState->striker_idx;
+                Player *facing = NULL;
+                if (facing_idx >= 0) facing = &gameState->batting_team->players[facing_idx];
+
+                // Update bowler stats
                 if (runsThisBall > 0 && prevBowler) prevBowler->match_runs_conceded += runsThisBall;
                 if (prevBowler) prevBowler->match_balls_bowled++;
+
+                // Update batsman stats
+                if (facing) {
+                    facing->total_runs += runsThisBall;
+                    facing->balls_faced++;
+                }
+
+                // Rotate strike immediately on odd runs
+                if (runsThisBall % 2 != 0) {
+                    int tmp = gameState->striker_idx;
+                    gameState->striker_idx = gameState->non_striker_idx;
+                    gameState->non_striker_idx = tmp;
+                }
+
+                // Log using the original facing batsman and previous bowler
                 log_ball_data(gameState, 1, gameState->overs_completed, gameState->balls_bowled_in_over,
-                              &gameState->batting_team->players[gameState->striker_idx], // Striker
-                              prevBowler ? prevBowler : NULL, // Bowler
+                              facing ? facing : NULL,
+                              prevBowler ? prevBowler : NULL,
                               runsThisBall, OUTCOME_RUNS, NULL, NULL);
                 PushBallOutcome(runsThisBall); // Record runs for boundary
                 currentPhase = PHASE_IDLE; // Allow next ball
@@ -1699,9 +1807,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         DrawText("RUN!", runButton.x + 50, runButton.y + 15, 20, WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), runButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             runsThisBall++;
-            gameState->total_runs++; // This should be here
-            PlaySound(sounds->single);
-            // Trigger the running animation
+
             currentPhase = PHASE_BATSMAN_RUNNING;
             runAnimTimer = 0.0f;
 

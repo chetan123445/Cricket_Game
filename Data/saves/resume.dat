@@ -1,0 +1,21 @@
+batting_team_tag: 
+bowling_team_tag: 
+total_runs: 0
+wickets: 0
+overs_completed: 1
+balls_bowled_in_over: 2
+current_powerplay: 0
+striker_idx: 0
+non_striker_idx: 2
+bowler_idx: 10
+selected_bowler_idx: -1
+awaiting_bowler_selection: 0
+awaiting_batsman_selection: 0
+next_batsman_idx: 2
+last_bowler_idx: 8
+max_overs: 50
+target: 0
+rain_percentage: 0.000000
+match_id: 
+format: 0
+inning_num: 1
