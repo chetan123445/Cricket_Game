@@ -3441,6 +3441,13 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                             }
                         }
                     }
+                    // Shuffle the matches to randomize order
+                    for (int i = num_wc_matches - 1; i > 0; i--) {
+                        int j = GetRandomValue(0, i);
+                        Match temp = wc_matches[i];
+                        wc_matches[i] = wc_matches[j];
+                        wc_matches[j] = temp;
+                    }
                     currentStep = WC_STEP_FIXTURES;
                 }
             }
@@ -3460,17 +3467,99 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             }
 
             BeginScissorMode(view.x, view.y, view.width, view.height);
+
+            // --- Dynamic Column Width Calculation ---
+            const char* fixture_headers[] = { "#", "Team A", "vs", "Team B", "Date", "Time" };
+            float col_widths[6] = {0}; // Initialize with 0
+
+            // Determine max width for each column from headers
+            for (int i = 0; i < 6; i++) {
+                col_widths[i] = MeasureText(fixture_headers[i], 18);
+            }
+            // Add static width for "vs"
+            col_widths[2] = MeasureText("vs", 18);
+
+            // Determine max width from match data
             for (int i = 0; i < num_wc_matches; i++) {
-                float y_pos = view.y + 10 + (i * itemHeight) + scroll.y;
-                
-                // Add Date and Time to fixtures
+                char buffer[64];
+                // Match #
+                sprintf(buffer, "%d.", i + 1);
+                float width = MeasureText(buffer, 18);
+                if (width > col_widths[0]) col_widths[0] = width;
+
+                // Team A
+                width = MeasureText(wc_matches[i].teamA->name, 18);
+                if (width > col_widths[1]) col_widths[1] = width;
+
+                // Team B
+                width = MeasureText(wc_matches[i].teamB->name, 18);
+                if (width > col_widths[3]) col_widths[3] = width;
+
+                // Date
                 time_t match_date_t = tournament_start_date + (i * 24 * 60 * 60);
                 struct tm *match_tm = localtime(&match_date_t);
                 char date_str[32];
                 strftime(date_str, sizeof(date_str), "%a, %b %d", match_tm);
-                char match_text[512];
-                sprintf(match_text, "Match %d: %s vs %s  |  %s @ 10:00 AM", i + 1, wc_matches[i].teamA->name, wc_matches[i].teamB->name, date_str);
-                DrawText(match_text, view.x + 20, y_pos, 20, ICC_GRAY);
+                width = MeasureText(date_str, 18);
+                if (width > col_widths[4]) col_widths[4] = width;
+
+                // Time (fixed for now)
+                width = MeasureText("10:00 AM", 18);
+                if (width > col_widths[5]) col_widths[5] = width;
+            }
+
+            // Calculate total required width and available padding
+            float total_content_width = 0;
+            for (int i = 0; i < 6; i++) {
+                total_content_width += col_widths[i];
+            }
+
+            const float min_padding = 20; // Minimum padding between columns
+            float dynamic_padding = (view.width - total_content_width) / (6 - 1);
+
+            if (dynamic_padding < min_padding) dynamic_padding = min_padding; // Ensure minimum padding
+
+            // Calculate column x positions
+            float col_x[6];
+            float current_x = view.x + 10; // Small left margin
+            for (int i = 0; i < 6; i++) {
+                col_x[i] = current_x;
+                current_x += col_widths[i] + dynamic_padding;
+            }
+
+            // Draw Headers
+            int y_header = view.y + 10 + scroll.y;
+            for (int i = 0; i < 6; i++) {
+                DrawText(fixture_headers[i], col_x[i], y_header, 18, ICC_YELLOW);
+            }
+            DrawLine(view.x + 10, y_header + 24, view.x + view.width - 10, y_header + 24, ICC_YELLOW);
+
+
+            // Draw Match Data
+            for (int i = 0; i < num_wc_matches; i++) {
+                float y_pos = view.y + 40 + (i * itemHeight) + scroll.y;
+                
+                // Match #
+                DrawText(TextFormat("%d.", i + 1), col_x[0], y_pos, 18, ICC_WHITE);
+
+                // Team A
+                DrawText(wc_matches[i].teamA->name, col_x[1], y_pos, 18, ICC_WHITE);
+
+                // vs
+                DrawText("vs", col_x[2], y_pos, 18, ICC_BLUE);
+
+                // Team B
+                DrawText(wc_matches[i].teamB->name, col_x[3], y_pos, 18, ICC_WHITE);
+
+                // Date
+                time_t match_date_t = tournament_start_date + (i * 24 * 60 * 60);
+                struct tm *match_tm = localtime(&match_date_t);
+                char date_str[32];
+                strftime(date_str, sizeof(date_str), "%a, %b %d", match_tm);
+                DrawText(date_str, col_x[4], y_pos, 18, ICC_WHITE);
+
+                // Time
+                DrawText("10:00 AM", col_x[5], y_pos, 18, ICC_WHITE);
             }
             EndScissorMode();
 
