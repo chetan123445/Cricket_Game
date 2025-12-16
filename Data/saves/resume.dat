@@ -3,7 +3,7 @@ bowling_team_tag:
 total_runs: 1
 wickets: 0
 overs_completed: 1
-balls_bowled_in_over: 3
+balls_bowled_in_over: 0
 current_powerplay: 0
 striker_idx: 0
 non_striker_idx: 1

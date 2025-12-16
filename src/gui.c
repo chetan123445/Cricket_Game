@@ -213,14 +213,14 @@ static void UpdateDrawGroundsScreen(GuiState *state) {
 
     // --- Drawing ---
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(ICC_BG);
 
-    DrawTextBold("Manage Grounds", GetScreenWidth()/2 - MeasureText("Manage Grounds", 40)/2, 10, 40, DARKGRAY);
+    DrawTextBold("Manage Grounds", GetScreenWidth()/2 - MeasureText("Manage Grounds", 40)/2, 10, 40, ICC_GRAY);
     
     // --- Draw Search and Filter UI ---
-    DrawTextBold("Search Name/Country:", searchBox.bounds.x, searchBox.bounds.y - 15, 10, GRAY);
-    DrawRectangleRec(searchBox.bounds, WHITE); DrawRectangleLinesEx(searchBox.bounds, 1, LIGHTGRAY);
-    DrawTextBold(searchBox.text, searchBox.bounds.x + 5, searchBox.bounds.y + 5, 20, BLACK);
+    DrawTextBold("Search Name/Country:", searchBox.bounds.x, searchBox.bounds.y - 15, 10, ICC_GRAY);
+    DrawRectangleRec(searchBox.bounds, ICC_WHITE); DrawRectangleLinesEx(searchBox.bounds, 1, ICC_GRAY);
+    DrawTextBold(searchBox.text, searchBox.bounds.x + 5, searchBox.bounds.y + 5, 20, ICC_WHITE);
 
     // --- Filtering Logic (Fuzzy Search) ---
     Ground* filtered_grounds = NULL;
@@ -250,24 +250,22 @@ static void UpdateDrawGroundsScreen(GuiState *state) {
     }
 
     // Draw input section
-    DrawTextBold("Ground Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(nameBox.bounds, LIGHTGRAY); DrawTextBold(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, BLACK);
-    DrawTextBold("Country", countryBox.bounds.x, countryBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(countryBox.bounds, LIGHTGRAY); DrawTextBold(countryBox.text, countryBox.bounds.x + 5, countryBox.bounds.y + 8, 20, BLACK);
-
+    DrawTextBold("Ground Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(nameBox.bounds, ICC_GRAY); DrawTextBold(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, ICC_WHITE);
+    DrawTextBold("Country", countryBox.bounds.x, countryBox.bounds.y - 20, 10, ICC_GRAY);
+    const char* buttonText = (editIndex == -1) ? "Add New Ground" : "Save Changes";
     // Draw "Add" or "Save" button based on edit mode
-    const char* buttonText = (editIndex == -1) ? "Add Ground" : "Save Changes";
-    DrawRectangleRec(addButton, (editIndex == -1) ? DARKGREEN : BLUE);
-    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, WHITE);
+    DrawRectangleRec(addButton, (editIndex == -1) ? ICC_GREEN : ICC_BLUE);
+    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, ICC_WHITE);
     if (editIndex != -1) {
-        DrawRectangleRec(cancelEditButton, MAROON);
-        DrawTextBold("Cancel", cancelEditButton.x + cancelEditButton.width/2 - MeasureText("Cancel", 15)/2, cancelEditButton.y + 5, 15, WHITE);
+        DrawRectangleRec(cancelEditButton, ICC_RED);
+        DrawTextBold("Cancel", cancelEditButton.x + cancelEditButton.width/2 - MeasureText("Cancel", 15)/2, cancelEditButton.y + 5, 15, ICC_WHITE);
     }
 
     // Draw list of current grounds
     DrawRectangle(20, 150, GetScreenWidth() - 40, GetScreenHeight() - 210, DARKBROWN);
-    DrawTextBold("Current Grounds", 30, 160, 20, GOLD);
-    DrawLine(30, 185, GetScreenWidth() - 50, 185, GOLD);
+    DrawTextBold("Current Grounds", 30, 160, 20, ICC_YELLOW);
+    DrawLine(30, 185, GetScreenWidth() - 50, 185, ICC_YELLOW);
     
     // Define the scrollable view area
     Rectangle view = { 20, 188, GetScreenWidth() - 40, GetScreenHeight() - 250 }; // The visible panel
@@ -307,15 +305,15 @@ static void UpdateDrawGroundsScreen(GuiState *state) {
         float col3_x = col2_x + max_country_width + padding;
         
         int header_y = view.y + 5 + scroll.y;
-        DrawTextBold("Name", col1_x, header_y, 20, GOLD);
-        DrawTextBold("Country", col2_x, header_y, 20, GOLD);
-        DrawTextBold("Actions", col3_x, header_y, 20, GOLD);
-        DrawLine(view.x + 10, header_y + 25, view.x + view.width - 20, header_y + 25, GOLD);
+        DrawTextBold("Name", col1_x, header_y, 20, ICC_YELLOW);
+        DrawTextBold("Country", col2_x, header_y, 20, ICC_YELLOW);
+        DrawTextBold("Actions", col3_x, header_y, 20, ICC_YELLOW);
+        DrawLine(view.x + 10, header_y + 25, view.x + view.width - 20, header_y + 25, ICC_YELLOW);
 
         for (int i = 0; i < num_filtered_grounds; i++) {
             int y_pos = view.y + headerHeight + (i * itemHeight) + scroll.y;
             int original_index = original_indices[i];
-            Color textColor = (editIndex == original_index) ? YELLOW : RAYWHITE;
+            Color textColor = (editIndex == original_index) ? ICC_YELLOW : ICC_WHITE;
 
             DrawTextBold(filtered_grounds[i].name, col1_x, y_pos, 20, textColor);
             DrawTextBold(filtered_grounds[i].country, col2_x, y_pos, 20, textColor);
@@ -323,10 +321,10 @@ static void UpdateDrawGroundsScreen(GuiState *state) {
             Rectangle editBtnRec = { col3_x, y_pos, editButtonWidth, buttonHeight };
             Rectangle deleteBtnRec = { col3_x + editButtonWidth + 5, y_pos, deleteButtonWidth, buttonHeight };
 
-            DrawRectangleRec(editBtnRec, ORANGE);
-            DrawTextBold("Edit", editBtnRec.x + editBtnRec.width/2 - MeasureText("Edit", 15)/2, editBtnRec.y + 2, 15, BLACK);
-            DrawRectangleRec(deleteBtnRec, RED);
-            DrawTextBold("Delete", deleteBtnRec.x + deleteBtnRec.width/2 - MeasureText("Delete", 15)/2, deleteBtnRec.y + 2, 15, WHITE);
+            DrawRectangleRec(editBtnRec, ICC_YELLOW);
+            DrawTextBold("Edit", editBtnRec.x + editBtnRec.width/2 - MeasureText("Edit", 15)/2, editBtnRec.y + 2, 15, ICC_WHITE);
+            DrawRectangleRec(deleteBtnRec, ICC_RED);
+            DrawTextBold("Delete", deleteBtnRec.x + deleteBtnRec.width/2 - MeasureText("Delete", 15)/2, deleteBtnRec.y + 2, 15, ICC_WHITE);
 
             if (CheckCollisionPointRec(GetMousePosition(), editBtnRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 editIndex = original_index;
@@ -346,26 +344,26 @@ static void UpdateDrawGroundsScreen(GuiState *state) {
             }
         }
     } else {
-        DrawTextBold("No grounds found in Data/grounds.dat.", view.x + 20, view.y + 10, 20, GRAY);
+        DrawTextBold("No grounds found in Data/grounds.dat.", view.x + 20, view.y + 10, 20, ICC_GRAY);
     }
 
     EndScissorMode();
 
     if (contentHeight > view.height) {
         Rectangle scrollBarArea = { view.x + view.width - 12, view.y, 10, view.height };
-        DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+        DrawRectangleRec(scrollBarArea, ICC_GRAY);
         
         float scrollBarHeight = (view.height / contentHeight) * view.height;
         float scrollBarY = view.y + (-scroll.y / (contentHeight - view.height)) * (view.height - scrollBarHeight);
         Rectangle scrollHandle = { scrollBarArea.x, scrollBarY, 10, scrollBarHeight };
-        DrawRectangleRec(scrollHandle, DARKGRAY);
+        DrawRectangleRec(scrollHandle, ICC_GRAY);
     }
 
     if (filtered_grounds) free(filtered_grounds);
     if (original_indices) free(original_indices);
 
-    DrawRectangleRec(backButton, LIGHTGRAY);
-    DrawTextBold("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, BLACK);
+    DrawRectangleRec(backButton, ICC_GRAY);
+    DrawTextBold("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, ICC_WHITE);
 
     EndDrawing();
 }
@@ -549,36 +547,36 @@ static void UpdateDrawLoginScreen(GuiState *state) {
     }
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
-    DrawText("Cricket Game Login", GetScreenWidth()/2 - MeasureText("Cricket Game Login", 50)/2, GetScreenHeight()/2 - 220, 50, DARKGRAY);
+    ClearBackground(ICC_BG);
+    DrawText("Cricket Game Login", GetScreenWidth()/2 - MeasureText("Cricket Game Login", 50)/2, GetScreenHeight()/2 - 220, 50, ICC_GRAY);
 
-    DrawText("Email:", emailBox.bounds.x, emailBox.bounds.y - 20, 20, GRAY);
-    DrawRectangleRec(emailBox.bounds, LIGHTGRAY);
-    if (emailBox.active) DrawRectangleLinesEx(emailBox.bounds, 2, BLUE);
-    DrawText(emailBox.text, emailBox.bounds.x + 5, emailBox.bounds.y + 10, 20, BLACK);
+    DrawText("Email:", emailBox.bounds.x, emailBox.bounds.y - 20, 20, ICC_GRAY);
+    DrawRectangleRec(emailBox.bounds, ICC_GRAY);
+    if (emailBox.active) DrawRectangleLinesEx(emailBox.bounds, 2, ICC_BLUE);
+    DrawText(emailBox.text, emailBox.bounds.x + 5, emailBox.bounds.y + 10, 20, ICC_WHITE);
 
-    DrawText("Password:", passwordBox.bounds.x, passwordBox.bounds.y - 20, 20, GRAY);
-    DrawRectangleRec(passwordBox.bounds, LIGHTGRAY);
-    if (passwordBox.active) DrawRectangleLinesEx(passwordBox.bounds, 2, BLUE);
+    DrawText("Password:", passwordBox.bounds.x, passwordBox.bounds.y - 20, 20, ICC_GRAY);
+    DrawRectangleRec(passwordBox.bounds, ICC_GRAY);
+    if (passwordBox.active) DrawRectangleLinesEx(passwordBox.bounds, 2, ICC_BLUE);
     // Draw password as asterisks
     char passwordDisplay[128] = {0};
     for(int i = 0; i < passwordBox.charCount; ++i) strcat(passwordDisplay, "*");
-    DrawText(passwordDisplay, passwordBox.bounds.x + 5, passwordBox.bounds.y + 10, 20, BLACK);
+    DrawText(passwordDisplay, passwordBox.bounds.x + 5, passwordBox.bounds.y + 10, 20, ICC_WHITE);
 
     // Draw Login Button with state-dependent text
     if (isLoggingIn) {
-        DrawRectangleRec(loginButton, DARKGRAY);
-        DrawText("Logging in...", loginButton.x + loginButton.width/2 - MeasureText("Logging in...", 20)/2, loginButton.y + 10, 20, WHITE);
+        DrawRectangleRec(loginButton, ICC_GRAY);
+        DrawText("Logging in...", loginButton.x + loginButton.width/2 - MeasureText("Logging in...", 20)/2, loginButton.y + 10, 20, ICC_WHITE);
     } else {
-        DrawRectangleRec(loginButton, BLUE);
-        DrawText("Login", loginButton.x + loginButton.width/2 - MeasureText("Login", 20)/2, loginButton.y + 10, 20, WHITE);
+        DrawRectangleRec(loginButton, ICC_BLUE);
+        DrawText("Login", loginButton.x + loginButton.width/2 - MeasureText("Login", 20)/2, loginButton.y + 10, 20, ICC_WHITE);
     }
 
-    DrawRectangleRec(registerButton, GRAY);
-    DrawText("Register New User", registerButton.x + registerButton.width/2 - MeasureText("Register New User", 20)/2, registerButton.y + 10, 20, WHITE);
+    DrawRectangleRec(registerButton, ICC_GRAY);
+    DrawText("Register New User", registerButton.x + registerButton.width/2 - MeasureText("Register New User", 20)/2, registerButton.y + 10, 20, ICC_WHITE);
 
     if (errorMessage) {
-        DrawText(errorMessage, GetScreenWidth()/2 - MeasureText(errorMessage, 20)/2, GetScreenHeight()/2 + 180, 20, RED);
+        DrawText(errorMessage, GetScreenWidth()/2 - MeasureText(errorMessage, 20)/2, GetScreenHeight()/2 + 180, 20, ICC_RED);
     }
 
     EndDrawing();
@@ -593,11 +591,11 @@ static void UpdateDrawRegisterScreen(GuiState *state) {
     }
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
-    DrawText("Registration", GetScreenWidth()/2 - MeasureText("Registration", 50)/2, GetScreenHeight()/2 - 100, 50, DARKGRAY);
-    DrawText("Registration UI not yet implemented.", GetScreenWidth()/2 - MeasureText("Registration UI not yet implemented.", 20)/2, GetScreenHeight()/2 - 20, 20, GRAY);
-    DrawRectangleRec(backButton, LIGHTGRAY);
-    DrawText("Back to Login", backButton.x + backButton.width/2 - MeasureText("Back to Login", 20)/2, backButton.y + 10, 20, BLACK);
+    ClearBackground(ICC_BG);
+    DrawText("Registration", GetScreenWidth()/2 - MeasureText("Registration", 50)/2, GetScreenHeight()/2 - 100, 50, ICC_GRAY);
+    DrawText("Registration UI not yet implemented.", GetScreenWidth()/2 - MeasureText("Registration UI not yet implemented.", 20)/2, GetScreenHeight()/2 - 20, 20, ICC_GRAY);
+    DrawRectangleRec(backButton, ICC_GRAY);
+    DrawText("Back to Login", backButton.x + backButton.width/2 - MeasureText("Back to Login", 20)/2, backButton.y + 10, 20, ICC_WHITE);
     EndDrawing();
 }
 
@@ -630,24 +628,24 @@ static void UpdateDrawAdminMenuScreen(GuiState *state) {
     }
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(ICC_BG);
     char title[128];
     sprintf(title, "Admin Menu: %s", state->userName);
-    DrawText(title, screenWidth/2 - MeasureText(title, 50)/2, GetScreenHeight()/2 - 200, 50, DARKGRAY);
+    DrawText(title, screenWidth/2 - MeasureText(title, 50)/2, GetScreenHeight()/2 - 200, 50, ICC_GRAY);
 
-    DrawRectangleRec(mainMenuButton, LIGHTGRAY);
-    DrawText("Main Admin Menu", mainMenuButton.x + mainMenuButton.width/2 - MeasureText("Main Admin Menu", 20)/2, mainMenuButton.y + 15, 20, BLACK);
+    DrawRectangleRec(mainMenuButton, ICC_GRAY);
+    DrawText("Main Admin Menu", mainMenuButton.x + mainMenuButton.width/2 - MeasureText("Main Admin Menu", 20)/2, mainMenuButton.y + 15, 20, ICC_WHITE);
 
     if (isSuper) {
-        DrawRectangleRec(manageUsersButton, DARKBLUE);
-        DrawText("Manage Users & Admins", manageUsersButton.x + manageUsersButton.width/2 - MeasureText("Manage Users & Admins", 20)/2, manageUsersButton.y + 15, 20, WHITE);
+        DrawRectangleRec(manageUsersButton, ICC_BLUE);
+        DrawText("Manage Users & Admins", manageUsersButton.x + manageUsersButton.width/2 - MeasureText("Manage Users & Admins", 20)/2, manageUsersButton.y + 15, 20, ICC_WHITE);
     }
 
-    DrawRectangleRec(teamsButton, DARKBLUE);
-    DrawText("Team & Player Management", teamsButton.x + teamsButton.width/2 - MeasureText("Team & Player Management", 20)/2, teamsButton.y + 15, 20, WHITE);
+    DrawRectangleRec(teamsButton, ICC_BLUE);
+    DrawText("Team & Player Management", teamsButton.x + teamsButton.width/2 - MeasureText("Team & Player Management", 20)/2, teamsButton.y + 15, 20, ICC_WHITE);
 
-    DrawRectangleRec(logoutButton, MAROON);
-    DrawText("Logout", logoutButton.x + logoutButton.width/2 - MeasureText("Logout", 20)/2, logoutButton.y + 15, 20, WHITE);
+    DrawRectangleRec(logoutButton, ICC_RED);
+    DrawText("Logout", logoutButton.x + logoutButton.width/2 - MeasureText("Logout", 20)/2, logoutButton.y + 15, 20, ICC_WHITE);
     EndDrawing();
 }
 
@@ -691,33 +689,33 @@ static void UpdateDrawMainMenuScreen(GuiState *state, GameState *gameState) {
 
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(ICC_BG);
     char title[128];
     sprintf(title, "Main Menu: %s", state->userName);
-    DrawText(title, screenWidth/2 - MeasureText(title, 50)/2, GetScreenHeight()/2 - 320, 50, DARKGRAY);
+    DrawText(title, screenWidth/2 - MeasureText(title, 50)/2, GetScreenHeight()/2 - 320, 50, ICC_GRAY);
 
     if (saveFileExists) {
-        DrawRectangleRec(resumeGameButton, LIGHTGRAY);
-        DrawText("Resume Game", resumeGameButton.x + resumeGameButton.width/2 - MeasureText("Resume Game", 20)/2, resumeGameButton.y + 15, 20, BLACK);
+        DrawRectangleRec(resumeGameButton, ICC_GRAY);
+        DrawText("Resume Game", resumeGameButton.x + resumeGameButton.width/2 - MeasureText("Resume Game", 20)/2, resumeGameButton.y + 15, 20, ICC_WHITE);
     }
 
-    DrawRectangleRec(playButton, LIGHTGRAY);
-    DrawText("Play Match", playButton.x + playButton.width/2 - MeasureText("Play Match", 20)/2, playButton.y + 15, 20, BLACK);
+    DrawRectangleRec(playButton, ICC_GRAY);
+    DrawText("Play Match", playButton.x + playButton.width/2 - MeasureText("Play Match", 20)/2, playButton.y + 15, 20, ICC_WHITE);
 
-    DrawRectangleRec(teamsButton, LIGHTGRAY);
-    DrawText("Teams & Players", teamsButton.x + teamsButton.width/2 - MeasureText("Teams & Players", 20)/2, teamsButton.y + 15, 20, BLACK);
+    DrawRectangleRec(teamsButton, ICC_GRAY);
+    DrawText("Teams & Players", teamsButton.x + teamsButton.width/2 - MeasureText("Teams & Players", 20)/2, teamsButton.y + 15, 20, ICC_WHITE);
 
-    DrawRectangleRec(umpiresButton, LIGHTGRAY);
-    DrawText("Add/View Umpires", umpiresButton.x + umpiresButton.width/2 - MeasureText("Add/View Umpires", 20)/2, umpiresButton.y + 15, 20, BLACK);
+    DrawRectangleRec(umpiresButton, ICC_GRAY);
+    DrawText("Add/View Umpires", umpiresButton.x + umpiresButton.width/2 - MeasureText("Add/View Umpires", 20)/2, umpiresButton.y + 15, 20, ICC_WHITE);
 
-    DrawRectangleRec(groundsButton, LIGHTGRAY);
-    DrawText("Add/View Grounds", groundsButton.x + groundsButton.width/2 - MeasureText("Add/View Grounds", 20)/2, groundsButton.y + 15, 20, BLACK);
+    DrawRectangleRec(groundsButton, ICC_GRAY);
+    DrawText("Add/View Grounds", groundsButton.x + groundsButton.width/2 - MeasureText("Add/View Grounds", 20)/2, groundsButton.y + 15, 20, ICC_WHITE);
 
-    DrawRectangleRec(historyButton, LIGHTGRAY);
-    DrawText("View History", historyButton.x + historyButton.width/2 - MeasureText("View History", 20)/2, historyButton.y + 15, 20, BLACK);
+    DrawRectangleRec(historyButton, ICC_GRAY);
+    DrawText("View History", historyButton.x + historyButton.width/2 - MeasureText("View History", 20)/2, historyButton.y + 15, 20, ICC_WHITE);
 
-    DrawRectangleRec(logoutButton, MAROON);
-    DrawText("Logout", logoutButton.x + logoutButton.width/2 - MeasureText("Logout", 20)/2, logoutButton.y + 15, 20, WHITE);
+    DrawRectangleRec(logoutButton, ICC_RED);
+    DrawText("Logout", logoutButton.x + logoutButton.width/2 - MeasureText("Logout", 20)/2, logoutButton.y + 15, 20, ICC_WHITE);
 
     EndDrawing();
 }
@@ -732,7 +730,7 @@ static void DrawPlayerFigure(Vector2 position, Color color, bool is_striker, con
 
     // Draw team name behind the player
     if (team_name) {
-        DrawText(team_name, position.x - MeasureText(team_name, 10)/2, position.y - head_radius - 15, 10, DARKGRAY);
+        DrawText(team_name, position.x - MeasureText(team_name, 10)/2, position.y - head_radius - 15, 10, ICC_GRAY);
     }
 
     // Body
@@ -804,21 +802,21 @@ static void DrawFielders(const Vector2 *fielder_positions, GameState *gameState,
             fieldCenter.y + pos_normalized.y * (fieldRadius - 15)
         };
         
-        Color fielderColor = RED; // Default color
+        Color fielderColor = ICC_RED; // Default color
         if (gameState->gameplay_mode == GAMEPLAY_MODE_CUSTOM_FIELDING && i == dragging_fielder_idx) {
-            fielderColor = BLUE; // Highlight dragged fielder
+            fielderColor = ICC_BLUE; // Highlight dragged fielder
         } else if (Vector2Length(pos_normalized) > normalizedThirtyYardRadius) { // If fielder is outside 30-yard circle
             if (outside_count_current_view > max_outside) {
-                fielderColor = YELLOW; // Highlight if too many outside
+                fielderColor = ICC_YELLOW; // Highlight if too many outside
             }
         }
 
         DrawPlayerFigure(fielderScreenPos, fielderColor, false, NULL, false);
     }
     // Draw the wicket-keeper behind the stumps (fixed position, assuming striker at right end of pitch)
-    Vector2 keeperScreenPos = { fieldCenter.x + 190, fieldCenter.y };
+    Vector2 keeperScreenPos = { fieldCenter.x + 250, fieldCenter.y };
     if (keeper_player_list_idx != -1 && keeper_player_list_idx < gameState->bowling_team->num_players) {
-        DrawPlayerFigure(keeperScreenPos, ORANGE, false, gameState->bowling_team->players[keeper_player_list_idx].name, false);
+        DrawPlayerFigure(keeperScreenPos, ICC_YELLOW, false, gameState->bowling_team->players[keeper_player_list_idx].name, false);
     }
 }
 
@@ -851,9 +849,9 @@ static void InitializeAudience() {
         
         // Divide audience into two halves for each team
         if (angle > 180) {
-            audience[i].baseColor = BLUE; // Team A supporters
+            audience[i].baseColor = ICC_BLUE; // Team A supporters
         } else {
-            audience[i].baseColor = RED; // Team B supporters
+            audience[i].baseColor = ICC_RED; // Team B supporters
         }
     }
 }
@@ -863,23 +861,23 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
     (void)guiState; // guiState not needed here yet - suppress unused-parameter warning
     Rectangle panel = { 20, GetScreenHeight() - 130 - 20, GetScreenWidth() - 40, 130 };
     DrawRectangleRounded(panel, 0.2f, 10, (Color){20,20,20,220});
-    DrawRectangleRoundedLines(panel, 0.2f, 10, 2, GOLD);
+    DrawRectangleRoundedLines(panel, 0.2f, 10, 2, ICC_YELLOW);
 
     // FLAGS
     if (scorecardAssets.flagBatting.id) {
-        DrawTextureEx(scorecardAssets.flagBatting, (Vector2){panel.x + 30, panel.y + 30}, 0, 0.4f, WHITE);
+        DrawTextureEx(scorecardAssets.flagBatting, (Vector2){panel.x + 30, panel.y + 30}, 0, 0.4f, ICC_WHITE);
     }
     if (scorecardAssets.flagBowling.id) {
-        DrawTextureEx(scorecardAssets.flagBowling, (Vector2){panel.x + panel.width - 90, panel.y + 30}, 0, 0.4f, WHITE);
+        DrawTextureEx(scorecardAssets.flagBowling, (Vector2){panel.x + panel.width - 90, panel.y + 30}, 0, 0.4f, ICC_WHITE);
     }
 
     // TEAM NAMES
-    DrawTextBold(gameState->batting_team->name, panel.x + 130, panel.y + 30, 26, WHITE);
+    DrawTextBold(gameState->batting_team->name, panel.x + 130, panel.y + 30, 26, ICC_WHITE);
 
     // SCORE
     DrawTextBold(
         TextFormat("%d / %d", gameState->total_runs, gameState->wickets),
-        panel.x + 130, panel.y + 60, 24, WHITE
+        panel.x + 130, panel.y + 60, 24, ICC_WHITE
     );
 
     // Show striker and non-striker details (handle -1 safely)
@@ -896,45 +894,45 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
         TextFormat("Overs: %d.%d",
             gameState->overs_completed,
             gameState->balls_bowled_in_over),
-        panel.x + 130, panel.y + 95, 20, RAYWHITE
+        panel.x + 130, panel.y + 95, 20, ICC_WHITE
     );
 
     // BATSMEN
     if (gameState->striker_idx >= 0) {
         Player *s = &gameState->batting_team->players[gameState->striker_idx];
         DrawText(TextFormat("%s  %d(%d)", s->name, s->total_runs, s->balls_faced),
-                 panel.x + panel.width/2 - 100, panel.y + 55, 20, WHITE);
+                 panel.x + panel.width/2 - 100, panel.y + 55, 20, ICC_WHITE);
     } else {
-        DrawText("(Select Striker)", panel.x + panel.width/2 - 100, panel.y + 55, 20, WHITE);
+        DrawText("(Select Striker)", panel.x + panel.width/2 - 100, panel.y + 55, 20, ICC_WHITE);
     }
     if (gameState->non_striker_idx >= 0) {
         Player *ns = &gameState->batting_team->players[gameState->non_striker_idx];
         DrawText(TextFormat("%s  %d(%d)", ns->name, ns->total_runs, ns->balls_faced),
-                 panel.x + panel.width/2 - 100, panel.y + 80, 20, GRAY);
+                 panel.x + panel.width/2 - 100, panel.y + 80, 20, ICC_GRAY);
     } else {
-        DrawText("(Select Non-Striker)", panel.x + panel.width/2 - 100, panel.y + 80, 20, GRAY);
+        DrawText("(Select Non-Striker)", panel.x + panel.width/2 - 100, panel.y + 80, 20, ICC_GRAY);
     }
 
     // BOWLER + BALL DOTS
     if (gameState->bowler_idx >= 0) {
         Player *bowler = &gameState->bowling_team->players[gameState->bowler_idx];
         DrawText(TextFormat("Bowler: %s", bowler->name),
-                 panel.x + panel.width - 260, panel.y + 45, 20, WHITE);
+                 panel.x + panel.width - 260, panel.y + 45, 20, ICC_WHITE);
         // Show current bowler's match stats
         DrawText(TextFormat("Overs: %d  Runs: %d  W: %d", bowler->match_balls_bowled / 6, bowler->match_runs_conceded, bowler->match_wickets),
-                 panel.x + panel.width - 260, panel.y + 70, 16, LIGHTGRAY);
+                 panel.x + panel.width - 260, panel.y + 70, 16, ICC_GRAY);
     } else {
-        DrawText("Bowler: (Select)", panel.x + panel.width - 260, panel.y + 45, 20, WHITE);
+        DrawText("Bowler: (Select)", panel.x + panel.width - 260, panel.y + 45, 20, ICC_WHITE);
     }
 
     int x = panel.x + panel.width - 260;
     int y = panel.y + 115; // moved down to avoid overlap with bowler stats
     for (int i = 0; i < ballHistoryCount; i++) {
-        Color c = WHITE;
-        if (ballHistory[i] == 0) c = GRAY;
-        if (ballHistory[i] == 4) c = BLUE;
-        if (ballHistory[i] == 6) c = GOLD;
-        if (ballHistory[i] < 0) c = RED;
+        Color c = ICC_WHITE;
+        if (ballHistory[i] == 0) c = ICC_GRAY;
+        if (ballHistory[i] == 4) c = ICC_BLUE;
+        if (ballHistory[i] == 6) c = ICC_YELLOW;
+        if (ballHistory[i] < 0) c = ICC_RED;
 
         DrawCircle(x + i * 20, y, 7, c);
     }
@@ -949,7 +947,7 @@ void DrawScorecardUI(GameState *gameState, GuiState *guiState)
             TextFormat("Need %d runs in %d balls",
                 gameState->target - gameState->total_runs,
                 ballsLeft),
-            panel.x + panel.width/2 - 140, panel.y + 105, 18, ORANGE
+            panel.x + panel.width/2 - 140, panel.y + 105, 18, ICC_YELLOW
         );
     }
 }
@@ -980,7 +978,7 @@ static void DrawBowlerSelection(GameState *gameState)
         }
 
         Rectangle btn = { 50, y, 500, 40 };
-        Color bg = disabled ? GRAY : ICC_BLUE;
+        Color bg = disabled ? ICC_GRAY : ICC_BLUE;
         DrawRectangleRec(btn, bg);
 
         // Draw player name and basic stats
@@ -990,7 +988,7 @@ static void DrawBowlerSelection(GameState *gameState)
 
         // Show disable reason
         if (disabled) {
-            DrawText(disable_reason, 420, y + 8, 12, LIGHTGRAY);
+            DrawText(disable_reason, 420, y + 8, 12, ICC_GRAY);
         }
 
         // Handle click only if not disabled
@@ -1024,13 +1022,13 @@ static void DrawBatsmanSelection(GameState *gameState)
         if (p->is_out) { disabled = true; }
 
         Rectangle btn = { 50, y, 520, 40 };
-        Color bg = disabled ? LIGHTGRAY : ICC_GREEN;
+        Color bg = disabled ? ICC_GRAY : ICC_GREEN;
         DrawRectangleRec(btn, bg);
         DrawText(p->name, 60, y + 8, 18, ICC_WHITE);
 
         // Draw stats
         DrawText(TextFormat("Runs: %d  Balls: %d", p->total_runs, p->balls_faced), 240, y + 8, 14, ICC_WHITE);
-        if (p->is_out) DrawText(p->dismissal_info, 360, y + 8, 12, RED);
+        if (p->is_out) DrawText(p->dismissal_info, 360, y + 8, 12, ICC_RED);
 
         if (!disabled && CheckCollisionPointRec(GetMousePosition(), btn) &&
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -1079,20 +1077,20 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
     char groundText[150];
     sprintf(groundText, "Ground: %s", state->groundName);
-    DrawTextBold(groundText, x_offset, editFieldButton.y + editFieldButton.height + 10, 20, WHITE);
+    DrawTextBold(groundText, x_offset, editFieldButton.y + editFieldButton.height + 10, 20, ICC_WHITE);
 
     // Handle umpires display
-    DrawTextBold("Umpires:", x_offset, editFieldButton.y + editFieldButton.height + 40, 20, WHITE);
+    DrawTextBold("Umpires:", x_offset, editFieldButton.y + editFieldButton.height + 40, 20, ICC_WHITE);
     char umpire1[101] = {0};
     char umpire2[101] = {0};
     const char *comma = strstr(state->umpireNames, ", ");
     if (comma) {
         strncpy(umpire1, state->umpireNames, comma - state->umpireNames);
         strcpy(umpire2, comma + 2);
-        DrawTextBold(umpire1, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, WHITE);
-        DrawTextBold(umpire2, x_offset, editFieldButton.y + editFieldButton.height + 80, 20, WHITE);
+        DrawTextBold(umpire1, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, ICC_WHITE);
+        DrawTextBold(umpire2, x_offset, editFieldButton.y + editFieldButton.height + 80, 20, ICC_WHITE);
     } else {
-        DrawTextBold(state->umpireNames, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, WHITE);
+        DrawTextBold(state->umpireNames, x_offset, editFieldButton.y + editFieldButton.height + 60, 20, ICC_WHITE);
     }
 
     // Buttons to open the full scorecards
@@ -1102,14 +1100,14 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     Rectangle battingCardBtn = { x_offset, editFieldButton.y + editFieldButton.height + 110, 160, 30 };
     Rectangle bowlingCardBtn = { x_offset + 170, editFieldButton.y + editFieldButton.height + 110, 160, 30 };
 
-    DrawRectangleRec(battingCardBtn, DARKBLUE);
-    DrawText("Batting Scorecard", battingCardBtn.x + 10, battingCardBtn.y + 6, 16, WHITE);
+    DrawRectangleRec(battingCardBtn, ICC_BLUE);
+    DrawText("Batting Scorecard", battingCardBtn.x + 10, battingCardBtn.y + 6, 16, ICC_WHITE);
     if (CheckCollisionPointRec(GetMousePosition(), battingCardBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         showBattingScorecard = true;
     }
 
-    DrawRectangleRec(bowlingCardBtn, DARKBLUE);
-    DrawText("Bowling Scorecard", bowlingCardBtn.x + 10, bowlingCardBtn.y + 6, 16, WHITE);
+    DrawRectangleRec(bowlingCardBtn, ICC_BLUE);
+    DrawText("Bowling Scorecard", bowlingCardBtn.x + 10, bowlingCardBtn.y + 6, 16, ICC_WHITE);
     if (CheckCollisionPointRec(GetMousePosition(), bowlingCardBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         showBowlingScorecard = true;
     }
@@ -1118,10 +1116,10 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
 
     if (gameState->gameplay_mode == GAMEPLAY_MODE_PLAYING) {
-        DrawRectangleRec(fieldSetupButton, DARKBLUE);
+        DrawRectangleRec(fieldSetupButton, ICC_BLUE);
         char fieldButtonText[64];
         sprintf(fieldButtonText, "Field: %s", field_setup_names[gameState->fielding_setup]);
-        DrawText(fieldButtonText, fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, WHITE);
+        DrawText(fieldButtonText, fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), fieldSetupButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             if (gameState->current_powerplay == POWERPLAY_1) {
                 if (gameState->fielding_setup == PP_AGGRESSIVE) {
@@ -1134,8 +1132,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
             }
         }
 
-        DrawRectangleRec(editFieldButton, GREEN);
-        DrawText("Edit Field", editFieldButton.x + 10, editFieldButton.y + 10, 20, WHITE);
+        DrawRectangleRec(editFieldButton, ICC_GREEN);
+        DrawText("Edit Field", editFieldButton.x + 10, editFieldButton.y + 10, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), editFieldButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             gameState->gameplay_mode = GAMEPLAY_MODE_CUSTOM_FIELDING;
             // Copy current setup to custom setup
@@ -1145,11 +1143,11 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
             }
         }
     } else { // GAMEPLAY_MODE_CUSTOM_FIELDING
-        DrawRectangleRec(fieldSetupButton, GRAY); // Disabled when editing
-        DrawText("Field: Custom", fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, LIGHTGRAY);
+        DrawRectangleRec(fieldSetupButton, ICC_GRAY); // Disabled when editing
+        DrawText("Field: Custom", fieldSetupButton.x + 10, fieldSetupButton.y + 10, 20, ICC_GRAY);
 
-        DrawRectangleRec(editFieldButton, RED);
-        DrawText("Apply Field", editFieldButton.x + 10, editFieldButton.y + 10, 20, WHITE);
+        DrawRectangleRec(editFieldButton, ICC_RED);
+        DrawText("Apply Field", editFieldButton.x + 10, editFieldButton.y + 10, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), editFieldButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             gameState->gameplay_mode = GAMEPLAY_MODE_PLAYING;
             // The custom setup is now the active one for the remainder of gameplay
@@ -1207,6 +1205,10 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
     bool isGameOver = (gameState->overs_completed >= gameState->max_overs || gameState->wickets >= 10);
 
+    if (gameState->wickets >= 10 && gameState->inning_num == 1) {
+        currentPhase = PHASE_INNINGS_BREAK;
+    }
+
     if (currentPhase == PHASE_IDLE && !isGameOver && IsKeyPressed(KEY_SPACE)) {
         currentPhase = PHASE_BOWLER_RUNUP;
         PlaySound(sounds->bowling);
@@ -1222,7 +1224,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
 
     BeginDrawing();
-    ClearBackground(DARKGRAY); // A darker background for a stadium feel
+    ClearBackground(ICC_GRAY); // A darker background for a stadium feel
 
     
     // --- Draw Stadium Environment ---
@@ -1241,33 +1243,33 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         Color finalColor = audience[i].baseColor;
         // If celebrating, make some of the crowd flash
         if (is_celebrating && (rand() % 5 == 0)) {
-            finalColor = (rand() % 2 == 0) ? YELLOW : WHITE;
+            finalColor = (rand() % 2 == 0) ? ICC_YELLOW : ICC_WHITE;
         }
         DrawCircleV(audience[i].position, 2, finalColor);
     }
 
     // Draw Floodlights
-    DrawRectangle(50, 50, 20, 100, GRAY); DrawCircle(60, 45, 15, YELLOW);
-    DrawRectangle(GetScreenWidth() - 70, 50, 20, 100, GRAY); DrawCircle(GetScreenWidth() - 60, 45, 15, YELLOW);
-    DrawRectangle(50, GetScreenHeight() - 150, 20, 100, GRAY); DrawCircle(60, GetScreenHeight() - 155, 15, YELLOW);
-    DrawRectangle(GetScreenWidth() - 70, GetScreenHeight() - 150, 20, 100, GRAY); DrawCircle(GetScreenWidth() - 60, GetScreenHeight() - 155, 15, YELLOW);
+    DrawRectangle(50, 50, 20, 100, ICC_GRAY); DrawCircle(60, 45, 15, ICC_YELLOW);
+    DrawRectangle(GetScreenWidth() - 70, 50, 20, 100, ICC_GRAY); DrawCircle(GetScreenWidth() - 60, 45, 15, ICC_YELLOW);
+    DrawRectangle(50, GetScreenHeight() - 150, 20, 100, ICC_GRAY); DrawCircle(60, GetScreenHeight() - 155, 15, ICC_YELLOW);
+    DrawRectangle(GetScreenWidth() - 70, GetScreenHeight() - 150, 20, 100, ICC_GRAY); DrawCircle(GetScreenWidth() - 60, GetScreenHeight() - 155, 15, ICC_YELLOW);
 
     // Draw Entry Gate
     DrawRectangle(GetScreenWidth()/2 - 50, (int)(fieldCenter.y + standsRadius), 100, 40, (Color){40, 40, 40, 255});
 
     // --- Draw the Cricket Field ---
-    DrawCircleV(fieldCenter, fieldRadius, DARKGREEN);
-    DrawCircleLinesV(fieldCenter, boundaryRadius, WHITE); // Boundary Rope
+    DrawCircleV(fieldCenter, fieldRadius, ICC_GREEN);
+    DrawCircleLinesV(fieldCenter, boundaryRadius, ICC_WHITE); // Boundary Rope
 
     // Draw 30-yard circle
     float thirtyYardRadius = fieldRadius * 0.45f;
-    DrawCircleLinesV(fieldCenter, thirtyYardRadius, Fade(WHITE, 0.3f));
+    DrawCircleLinesV(fieldCenter, thirtyYardRadius, Fade(ICC_WHITE, 0.3f));
 
     // Draw the pitch
     Rectangle pitch = { fieldCenter.x - 200, fieldCenter.y - 25, 400, 50 };
     DrawRectangleRec(pitch, DARKBROWN);
-    DrawRectangle(pitch.x + 20, pitch.y, 5, pitch.height, LIGHTGRAY); // Crease
-    DrawRectangle(pitch.x + pitch.width - 25, pitch.y, 5, pitch.height, LIGHTGRAY); // Crease
+    DrawRectangle(pitch.x + 20, pitch.y, 5, pitch.height, ICC_GRAY); // Crease
+    DrawRectangle(pitch.x + pitch.width - 25, pitch.y, 5, pitch.height, ICC_GRAY); // Crease
 
     // Display Powerplay info
     const char* pp_text = "";
@@ -1277,7 +1279,7 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         case POWERPLAY_2: pp_text = "PP2 (11-40)"; max_outside = 4; break;
         case POWERPLAY_3: pp_text = "PP3 (41-50)"; max_outside = 5; break;
     }
-    DrawText(TextFormat("Powerplay: %s (%d outside max)", pp_text, max_outside), 20, 100, 20, GRAY);
+    DrawText(TextFormat("Powerplay: %s (%d outside max)", pp_text, max_outside), 20, 100, 20, ICC_GRAY);
 
 
     // --- Player Positions ---
@@ -1774,8 +1776,8 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     // --- Handle RUN button logic ---
     Rectangle runButton = { GetScreenWidth() - 180, GetScreenHeight() / 2 - 25, 160, 50 };
     if (showRunButton) {
-        DrawRectangleRec(runButton, DARKGREEN);
-        DrawText("RUN!", runButton.x + 50, runButton.y + 15, 20, WHITE);
+        DrawRectangleRec(runButton, ICC_GREEN);
+        DrawText("RUN!", runButton.x + 50, runButton.y + 15, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), runButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             runsThisBall++;
 
@@ -1883,18 +1885,18 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
     }
 
     // Draw main players
-    DrawPlayerFigure(strikerAnimPos, BLUE, true, gameState->batting_team->name, currentPhase == PHASE_BATSMAN_SWING);
-    DrawText(striker->name, strikerAnimPos.x - MeasureText(striker->name, 10)/2, strikerAnimPos.y + 30, 10, WHITE);
+    DrawPlayerFigure(strikerAnimPos, ICC_BLUE, true, gameState->batting_team->name, currentPhase == PHASE_BATSMAN_SWING);
+    DrawText(striker->name, strikerAnimPos.x - MeasureText(striker->name, 10)/2, strikerAnimPos.y + 30, 10, ICC_WHITE);
 
-    DrawPlayerFigure(nonStrikerAnimPos, BLUE, true, gameState->batting_team->name, false);
-    DrawText(non_striker->name, nonStrikerAnimPos.x - MeasureText(non_striker->name, 10)/2, nonStrikerAnimPos.y + 30, 10, WHITE);
+    DrawPlayerFigure(nonStrikerAnimPos, ICC_BLUE, true, gameState->batting_team->name, false);
+    DrawText(non_striker->name, nonStrikerAnimPos.x - MeasureText(non_striker->name, 10)/2, nonStrikerAnimPos.y + 30, 10, ICC_WHITE);
 
     if (currentPhase == PHASE_BALL_IN_FIELD) {
-        DrawPlayerFigure(fielderRunPos, RED, false, NULL, false);
+        DrawPlayerFigure(fielderRunPos, ICC_RED, false, NULL, false);
     }
 
-    DrawPlayerFigure(bowlerAnimPos, RED, false, gameState->bowling_team->name, false);
-    DrawText(bowler->name, bowlerAnimPos.x - MeasureText(bowler->name, 10)/2, bowlerAnimPos.y + 30, 10, WHITE);
+    DrawPlayerFigure(bowlerAnimPos, ICC_RED, false, gameState->bowling_team->name, false);
+    DrawText(bowler->name, bowlerAnimPos.x - MeasureText(bowler->name, 10)/2, bowlerAnimPos.y + 30, 10, ICC_WHITE);
     
     // Draw ball
     // The ball is only drawn when it's actually in play (traveling or in field)
@@ -1902,14 +1904,14 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         if (ballAltitude > 0) {
             DrawCircle(ballPos.x, ballPos.y, 6, Fade(BLACK, 0.4f)); // Shadow
         }
-        DrawCircle(ballPos.x, ballPos.y - ballAltitude, 6, WHITE); // Ball
+        DrawCircle(ballPos.x, ballPos.y - ballAltitude, 6, ICC_WHITE); // Ball
     }
 
     // --- Draw Scoreboard on top ---
     DrawScorecardUI(gameState, state);
     
     if (currentPhase == PHASE_IDLE && !isGameOver) {
-        DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 230, 20, YELLOW);
+        DrawText("Press [SPACE] to Bowl Next Ball", 20, GetScreenHeight() - 230, 20, ICC_YELLOW);
     } else if (isGameOver) {
         if (gameState->inning_num == 1) {
             currentPhase = PHASE_INNINGS_BREAK;
@@ -1922,11 +1924,11 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
 
     // --- Draw Final Match/Innings Status ---
     if (currentPhase == PHASE_INNINGS_BREAK) {
-        DrawText("INNINGS BREAK", GetScreenWidth()/2 - MeasureText("INNINGS BREAK", 40)/2, GetScreenHeight()/2 - 40, 40, YELLOW);
+        DrawText("INNINGS BREAK", GetScreenWidth()/2 - MeasureText("INNINGS BREAK", 40)/2, GetScreenHeight()/2 - 40, 40, ICC_YELLOW);
         char targetText[64];
         sprintf(targetText, "Target: %d", gameState->target);
-        DrawText(targetText, GetScreenWidth()/2 - MeasureText(targetText, 30)/2, GetScreenHeight()/2 + 10, 30, RAYWHITE);
-        DrawText("Press [SPACE] to start 2nd Innings", GetScreenWidth()/2 - MeasureText("Press [SPACE] to start 2nd Innings", 20)/2, GetScreenHeight()/2 + 50, 20, RAYWHITE);
+        DrawText(targetText, GetScreenWidth()/2 - MeasureText(targetText, 30)/2, GetScreenHeight()/2 + 10, 30, ICC_WHITE);
+        DrawText("Press [SPACE] to start 2nd Innings", GetScreenWidth()/2 - MeasureText("Press [SPACE] to start 2nd Innings", 20)/2, GetScreenHeight()/2 + 50, 20, ICC_WHITE);
     } else if (currentPhase == PHASE_MATCH_OVER) {
         char winnerText[128];
         if (gameState->total_runs >= gameState->target) {
@@ -1936,88 +1938,88 @@ static void UpdateDrawGameplayScreen(GuiState *state, GameState *gameState, Game
         } else {
             sprintf(winnerText, "%s won by %d runs!", gameState->bowling_team->name, gameState->target - gameState->total_runs -1);
         }
-        DrawText("MATCH OVER", GetScreenWidth()/2 - MeasureText("MATCH OVER", 50)/2, GetScreenHeight()/2 - 40, 50, GREEN);
-        DrawText(winnerText, GetScreenWidth()/2 - MeasureText(winnerText, 30)/2, GetScreenHeight()/2 + 20, 30, RAYWHITE);
+        DrawText("MATCH OVER", GetScreenWidth()/2 - MeasureText("MATCH OVER", 50)/2, GetScreenHeight()/2 - 40, 50, ICC_GREEN);
+        DrawText(winnerText, GetScreenWidth()/2 - MeasureText(winnerText, 30)/2, GetScreenHeight()/2 + 20, 30, ICC_WHITE);
     }
     
     // Draw the back button
-    DrawRectangleRec(backButton, LIGHTGRAY);
-    DrawText("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, BLACK);
+    DrawRectangleRec(backButton, ICC_GRAY);
+    DrawText("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, ICC_WHITE);
 
     // Draw "Play and Miss!" message if active
     if (GetTime() < playMissMessageEndTime) {
-        DrawText("Play and Miss!", GetScreenWidth()/2 - MeasureText("Play and Miss!", 40)/2, GetScreenHeight()/2, 40, ORANGE);
+        DrawText("Play and Miss!", GetScreenWidth()/2 - MeasureText("Play and Miss!", 40)/2, GetScreenHeight()/2, 40, ICC_YELLOW);
     }
     if (GetTime() < outcomeMessageEndTime) {
-        DrawText(outcomeMessage, GetScreenWidth()/2 - MeasureText(outcomeMessage, 40)/2, GetScreenHeight()/2, 40, ORANGE);
+        DrawText(outcomeMessage, GetScreenWidth()/2 - MeasureText(outcomeMessage, 40)/2, GetScreenHeight()/2, 40, ICC_YELLOW);
     }
 
     // Draw overlay scorecards when requested
     if (showBattingScorecard) {
         Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
         DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
-        DrawTextBold("Batting Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
+        DrawTextBold("Batting Scorecard", overlay.x + 20, overlay.y + 12, 22, ICC_WHITE);
         // Close button
         Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
-        DrawRectangleRec(closeBtn, RED);
-        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
+        DrawRectangleRec(closeBtn, ICC_RED);
+        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBattingScorecard = false;
 
         // Column headers
         int y_start = overlay.y + 48;
         int x_start = overlay.x + 20;
-        DrawText("#", x_start, y_start, 18, GOLD);
-        DrawText("Player", x_start + 40, y_start, 18, GOLD);
-        DrawText("Status", x_start + 240, y_start, 18, GOLD);
-        DrawText("Runs", x_start + 440, y_start, 18, GOLD);
-        DrawText("Balls", x_start + 520, y_start, 18, GOLD);
-        DrawLine(x_start, y_start + 24, x_start + 580, y_start + 24, GOLD);
+        DrawText("#", x_start, y_start, 18, ICC_YELLOW);
+        DrawText("Player", x_start + 40, y_start, 18, ICC_YELLOW);
+        DrawText("Status", x_start + 240, y_start, 18, ICC_YELLOW);
+        DrawText("Runs", x_start + 440, y_start, 18, ICC_YELLOW);
+        DrawText("Balls", x_start + 520, y_start, 18, ICC_YELLOW);
+        DrawLine(x_start, y_start + 24, x_start + 580, y_start + 24, ICC_YELLOW);
 
         // List batting players
         for (int i = 0; i < gameState->batting_team->num_players; ++i) {
             Player *p = &gameState->batting_team->players[i];
             int y_pos = y_start + 30 + i * 24;
-            DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, WHITE);
-            DrawText(p->name, x_start + 40, y_pos, 18, WHITE);
+            DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, ICC_WHITE);
+            DrawText(p->name, x_start + 40, y_pos, 18, ICC_WHITE);
             if (p->is_out) {
-                DrawText(p->dismissal_info, x_start + 240, y_pos, 16, LIGHTGRAY);
+                DrawText(p->dismissal_info, x_start + 240, y_pos, 16, ICC_GRAY);
             } else {
-                DrawText("Not Out", x_start + 240, y_pos, 18, GREEN);
+                DrawText("Not Out", x_start + 240, y_pos, 18, ICC_GREEN);
             }
-            DrawText(TextFormat("%d", p->total_runs), x_start + 440, y_pos, 18, WHITE);
-            DrawText(TextFormat("%d", p->balls_faced), x_start + 520, y_pos, 18, WHITE);
+            DrawText(TextFormat("%d", p->total_runs), x_start + 440, y_pos, 18, ICC_WHITE);
+            DrawText(TextFormat("%d", p->balls_faced), x_start + 520, y_pos, 18, ICC_WHITE);
         }
     }
 
     if (showBowlingScorecard) {
         Rectangle overlay = { 60, 80, GetScreenWidth() - 120, GetScreenHeight() - 160 };
         DrawRectangleRounded(overlay, 0.12f, 8, (Color){10,10,10,230});
-        DrawTextBold("Bowling Scorecard", overlay.x + 20, overlay.y + 12, 22, WHITE);
+        DrawTextBold("Bowling Scorecard", overlay.x + 20, overlay.y + 12, 22, ICC_WHITE);
         Rectangle closeBtn = { overlay.x + overlay.width - 40, overlay.y + 8, 32, 24 };
-        DrawRectangleRec(closeBtn, RED);
-        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, WHITE);
+        DrawRectangleRec(closeBtn, ICC_RED);
+        DrawText("X", closeBtn.x + 9, closeBtn.y + 3, 16, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), closeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) showBowlingScorecard = false;
 
         // Column headers
         int y_start = overlay.y + 48;
         int x_start = overlay.x + 20;
-        DrawText("#", x_start, y_start, 18, GOLD);
-        DrawText("Player", x_start + 40, y_start, 18, GOLD);
-        DrawText("Overs", x_start + 240, y_start, 18, GOLD);
-        DrawText("Runs", x_start + 320, y_start, 18, GOLD);
-        DrawText("Wickets", x_start + 400, y_start, 18, GOLD);
-        DrawLine(x_start, y_start + 24, x_start + 480, y_start + 24, GOLD);
+        DrawText("#", x_start, y_start, 18, ICC_YELLOW);
+        DrawText("Player", x_start + 40, y_start, 18, ICC_YELLOW);
+        DrawText("Overs", x_start + 240, y_start, 18, ICC_YELLOW);
+        DrawText("Runs", x_start + 320, y_start, 18, ICC_YELLOW);
+        DrawText("Wickets", x_start + 400, y_start, 18, ICC_YELLOW);
+        DrawLine(x_start, y_start + 24, x_start + 480, y_start + 24, ICC_YELLOW);
 
         // List bowling players
         for (int i = 0; i < gameState->bowling_team->num_players; ++i) {
             Player *p = &gameState->bowling_team->players[i];
             if (p->bowling_skill > 0) { // Only show players who can bowl
                 int y_pos = y_start + 30 + i * 24;
-                DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, WHITE);
-                DrawText(p->name, x_start + 40, y_pos, 18, WHITE);
-                DrawText(TextFormat("%d", p->match_balls_bowled / 6), x_start + 240, y_pos, 18, WHITE);
-                DrawText(TextFormat("%d", p->match_runs_conceded), x_start + 320, y_pos, 18, WHITE);
-                DrawText(TextFormat("%d", p->match_wickets), x_start + 400, y_pos, 18, WHITE);
+                DrawText(TextFormat("%2d.", i + 1), x_start, y_pos, 18, ICC_WHITE);
+                DrawText(p->name, x_start + 40, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_balls_bowled / 6), x_start + 240, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_runs_conceded), x_start + 320, y_pos, 18, ICC_WHITE);
+                DrawText(TextFormat("%d", p->match_wickets), x_start + 400, y_pos, 18, ICC_WHITE);
             }
         }
     }
@@ -2150,29 +2152,29 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
 
     // --- Drawing ---
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(ICC_BG);
 
-    DrawTextBold("Manage Umpires", GetScreenWidth()/2 - MeasureText("Manage Umpires", 40)/2, 10, 40, DARKGRAY);
+    DrawTextBold("Manage Umpires", GetScreenWidth()/2 - MeasureText("Manage Umpires", 40)/2, 10, 40, ICC_GRAY);
     
     // --- Draw Search and Filter UI ---
-    DrawTextBold("Search Name:", searchBox.bounds.x, searchBox.bounds.y - 15, 10, GRAY);
-    DrawRectangleRec(searchBox.bounds, WHITE); DrawRectangleLinesEx(searchBox.bounds, 1, LIGHTGRAY);
-    DrawTextBold(searchBox.text, searchBox.bounds.x + 5, searchBox.bounds.y + 5, 20, BLACK);
+    DrawTextBold("Search Name:", searchBox.bounds.x, searchBox.bounds.y - 15, 10, ICC_GRAY);
+    DrawRectangleRec(searchBox.bounds, ICC_WHITE); DrawRectangleLinesEx(searchBox.bounds, 1, ICC_GRAY);
+    DrawTextBold(searchBox.text, searchBox.bounds.x + 5, searchBox.bounds.y + 5, 20, ICC_WHITE);
 
-    DrawTextBold("Filter Country:", filterCountryBox.bounds.x, filterCountryBox.bounds.y - 15, 10, GRAY);
-    DrawRectangleRec(filterCountryBox.bounds, WHITE); DrawRectangleLinesEx(filterCountryBox.bounds, 1, LIGHTGRAY);
-    DrawTextBold(filterCountryBox.text, filterCountryBox.bounds.x + 5, filterCountryBox.bounds.y + 5, 20, BLACK);
+    DrawTextBold("Filter Country:", filterCountryBox.bounds.x, filterCountryBox.bounds.y - 15, 10, ICC_GRAY);
+    DrawRectangleRec(filterCountryBox.bounds, ICC_WHITE); DrawRectangleLinesEx(filterCountryBox.bounds, 1, ICC_GRAY);
+    DrawTextBold(filterCountryBox.text, filterCountryBox.bounds.x + 5, filterCountryBox.bounds.y + 5, 20, ICC_WHITE);
 
-    DrawTextBold("Matches >=", filterMatchesBox.bounds.x, filterMatchesBox.bounds.y - 15, 10, GRAY);
-    DrawRectangleRec(filterMatchesBox.bounds, WHITE); DrawRectangleLinesEx(filterMatchesBox.bounds, 1, LIGHTGRAY);
-    DrawTextBold(filterMatchesBox.text, filterMatchesBox.bounds.x + 5, filterMatchesBox.bounds.y + 5, 20, BLACK);
+    DrawTextBold("Matches >=", filterMatchesBox.bounds.x, filterMatchesBox.bounds.y - 15, 10, ICC_GRAY);
+    DrawRectangleRec(filterMatchesBox.bounds, ICC_WHITE); DrawRectangleLinesEx(filterMatchesBox.bounds, 1, ICC_GRAY);
+    DrawTextBold(filterMatchesBox.text, filterMatchesBox.bounds.x + 5, filterMatchesBox.bounds.y + 5, 20, ICC_WHITE);
 
-    DrawTextBold("Year >=", filterYearBox.bounds.x, filterYearBox.bounds.y - 15, 10, GRAY);
-    DrawRectangleRec(filterYearBox.bounds, WHITE); DrawRectangleLinesEx(filterYearBox.bounds, 1, LIGHTGRAY);
-    DrawTextBold(filterYearBox.text, filterYearBox.bounds.x + 5, filterYearBox.bounds.y + 5, 20, BLACK);
+    DrawTextBold("Year >=", filterYearBox.bounds.x, filterYearBox.bounds.y - 15, 10, ICC_GRAY);
+    DrawRectangleRec(filterYearBox.bounds, ICC_WHITE); DrawRectangleLinesEx(filterYearBox.bounds, 1, ICC_GRAY);
+    DrawTextBold(filterYearBox.text, filterYearBox.bounds.x + 5, filterYearBox.bounds.y + 5, 20, ICC_WHITE);
 
-    DrawRectangleRec(clearFiltersButton, LIGHTGRAY);
-    DrawTextBold("Clear", clearFiltersButton.x + clearFiltersButton.width/2 - MeasureText("Clear", 10)/2, clearFiltersButton.y + 8, 10, BLACK);
+    DrawRectangleRec(clearFiltersButton, ICC_GRAY);
+    DrawTextBold("Clear", clearFiltersButton.x + clearFiltersButton.width/2 - MeasureText("Clear", 10)/2, clearFiltersButton.y + 8, 10, ICC_WHITE);
 
     // --- Filtering Logic ---
     Umpire* filtered_umpires = NULL;
@@ -2201,28 +2203,26 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
     }
 
     // Draw input section
-    DrawTextBold("Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(nameBox.bounds, LIGHTGRAY); DrawTextBold(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, BLACK);
-    DrawTextBold("Country", countryBox.bounds.x, countryBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(countryBox.bounds, LIGHTGRAY); DrawTextBold(countryBox.text, countryBox.bounds.x + 5, countryBox.bounds.y + 8, 20, BLACK);
-    DrawTextBold("Since (Year)", yearBox.bounds.x, yearBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(yearBox.bounds, LIGHTGRAY); DrawTextBold(yearBox.text, yearBox.bounds.x + 5, yearBox.bounds.y + 8, 20, BLACK);
-    DrawTextBold("Matches", matchesBox.bounds.x, matchesBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(matchesBox.bounds, LIGHTGRAY); DrawTextBold(matchesBox.text, matchesBox.bounds.x + 5, matchesBox.bounds.y + 8, 20, BLACK);
-
+    DrawTextBold("Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(nameBox.bounds, ICC_GRAY); DrawTextBold(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, ICC_WHITE);
+    DrawTextBold("Country", countryBox.bounds.x, countryBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(countryBox.bounds, ICC_GRAY); DrawTextBold(countryBox.text, countryBox.bounds.x + 5, countryBox.bounds.y + 8, 20, ICC_WHITE);
+    DrawTextBold("Since (Year)", yearBox.bounds.x, yearBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(yearBox.bounds, ICC_GRAY); DrawTextBold(yearBox.text, yearBox.bounds.x + 5, yearBox.bounds.y + 8, 20, ICC_WHITE);
+    DrawTextBold("Matches", matchesBox.bounds.x, matchesBox.bounds.y - 20, 10, ICC_GRAY);
+    const char* buttonText = (editIndex == -1) ? "Add New Umpire" : "Save Changes";
     // Draw "Add" or "Save" button based on edit mode
-    const char* buttonText = (editIndex == -1) ? "Add Umpire" : "Save Changes";
-    DrawRectangleRec(addButton, (editIndex == -1) ? DARKGREEN : BLUE);
-    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, WHITE);
+    DrawRectangleRec(addButton, (editIndex == -1) ? ICC_GREEN : ICC_BLUE);
+    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, ICC_WHITE);
     if (editIndex != -1) {
-        DrawRectangleRec(cancelEditButton, MAROON);
-        DrawTextBold("Cancel", cancelEditButton.x + cancelEditButton.width/2 - MeasureText("Cancel", 15)/2, cancelEditButton.y + 5, 15, WHITE);
+        DrawRectangleRec(cancelEditButton, ICC_RED);
+        DrawTextBold("Cancel", cancelEditButton.x + cancelEditButton.width/2 - MeasureText("Cancel", 15)/2, cancelEditButton.y + 5, 15, ICC_WHITE);
     }
 
     // Draw list of current umpires
     DrawRectangle(20, 150, GetScreenWidth() - 40, GetScreenHeight() - 210, DARKBROWN);
-    DrawTextBold("Current Umpires", 30, 160, 20, GOLD);
-    DrawLine(30, 185, GetScreenWidth() - 50, 185, GOLD);
+    DrawTextBold("Current Umpires", 30, 160, 20, ICC_YELLOW);
+    DrawLine(30, 185, GetScreenWidth() - 50, 185, ICC_YELLOW);
     
     // Define the scrollable view area
     Rectangle view = { 20, 188, GetScreenWidth() - 40, GetScreenHeight() - 250 }; // The visible panel
@@ -2267,32 +2267,32 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
         
         // 3. Draw the header (it scrolls with the content)
         int header_y = view.y + 5 + scroll.y;
-        DrawTextBold("Name", col1_x, header_y, 20, GOLD);
-        DrawTextBold("Country", col2_x, header_y, 20, GOLD);
-        DrawTextBold("Since", col3_x, header_y, 20, GOLD);
-        DrawTextBold("Matches", col4_x, header_y, 20, GOLD);
-        DrawTextBold("Actions", col5_x, header_y, 20, GOLD);
-        DrawLine(view.x + 10, header_y + 25, view.x + view.width - 20, header_y + 25, GOLD);
+        DrawTextBold("Name", col1_x, header_y, 20, ICC_YELLOW);
+        DrawTextBold("Country", col2_x, header_y, 20, ICC_YELLOW);
+        DrawTextBold("Since", col3_x, header_y, 20, ICC_YELLOW);
+        DrawTextBold("Matches", col4_x, header_y, 20, ICC_YELLOW);
+        DrawTextBold("Actions", col5_x, header_y, 20, ICC_YELLOW);
+        DrawLine(view.x + 10, header_y + 25, view.x + view.width - 20, header_y + 25, ICC_YELLOW);
 
         // 4. Draw each umpire's details in perfectly aligned columns
         for (int i = 0; i < num_filtered_umpires; i++) {
             int y_pos = view.y + headerHeight + (i * itemHeight) + scroll.y;
             int original_index = original_indices[i];
-            Color textColor = (editIndex == original_index) ? YELLOW : RAYWHITE; // Highlight the entry being edited
+            Color textColor = (editIndex == original_index) ? ICC_YELLOW : ICC_WHITE; // Highlight the entry being edited
 
             DrawTextBold(filtered_umpires[i].name, col1_x, y_pos, 20, textColor);
             DrawTextBold(filtered_umpires[i].country, col2_x, y_pos, 20, textColor);
-            DrawTextBold(TextFormat("%d", filtered_umpires[i].since_year), col3_x, y_pos, 20, RAYWHITE);
-            DrawTextBold(TextFormat("%d", filtered_umpires[i].matches_umpired), col4_x, y_pos, 20, RAYWHITE);
+            DrawTextBold(TextFormat("%d", filtered_umpires[i].since_year), col3_x, y_pos, 20, ICC_WHITE);
+            DrawTextBold(TextFormat("%d", filtered_umpires[i].matches_umpired), col4_x, y_pos, 20, ICC_WHITE);
 
             // Define and draw Edit/Delete buttons for this row
             Rectangle editBtnRec = { col5_x, y_pos, editButtonWidth, buttonHeight };
             Rectangle deleteBtnRec = { col5_x + editButtonWidth + 5, y_pos, deleteButtonWidth, buttonHeight };
 
-            DrawRectangleRec(editBtnRec, ORANGE);
-            DrawTextBold("Edit", editBtnRec.x + editBtnRec.width/2 - MeasureText("Edit", 15)/2, editBtnRec.y + 2, 15, BLACK);
-            DrawRectangleRec(deleteBtnRec, RED);
-            DrawTextBold("Delete", deleteBtnRec.x + deleteBtnRec.width/2 - MeasureText("Delete", 15)/2, deleteBtnRec.y + 2, 15, WHITE);
+            DrawRectangleRec(editBtnRec, ICC_YELLOW);
+            DrawTextBold("Edit", editBtnRec.x + editBtnRec.width/2 - MeasureText("Edit", 15)/2, editBtnRec.y + 2, 15, ICC_WHITE);
+            DrawRectangleRec(deleteBtnRec, ICC_RED);
+            DrawTextBold("Delete", deleteBtnRec.x + deleteBtnRec.width/2 - MeasureText("Delete", 15)/2, deleteBtnRec.y + 2, 15, ICC_WHITE);
 
             // Check for button clicks
             if (CheckCollisionPointRec(GetMousePosition(), editBtnRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -2317,7 +2317,7 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
             }
         }
     } else {
-        DrawTextBold("No umpires found in Data/umpires.dat.", view.x + 20, view.y + 10, 20, GRAY); // No scroll needed
+        DrawTextBold("No umpires found in Data/umpires.dat.", view.x + 20, view.y + 10, 20, ICC_GRAY); // No scroll needed
     }
 
     // Stop clipping
@@ -2326,20 +2326,20 @@ static void UpdateDrawUmpiresScreen(GuiState *state) {
     // Draw the scrollbar if needed
     if (contentHeight > view.height) {
         Rectangle scrollBarArea = { view.x + view.width - 12, view.y, 10, view.height };
-        DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+        DrawRectangleRec(scrollBarArea, ICC_GRAY);
         
         float scrollBarHeight = (view.height / contentHeight) * view.height;
         float scrollBarY = view.y + (-scroll.y / (contentHeight - view.height)) * (view.height - scrollBarHeight);
         Rectangle scrollHandle = { scrollBarArea.x, scrollBarY, 10, scrollBarHeight };
-        DrawRectangleRec(scrollHandle, DARKGRAY);
+        DrawRectangleRec(scrollHandle, ICC_GRAY);
     }
 
     if (filtered_umpires) free(filtered_umpires);
     if (original_indices) free(original_indices);
 
     // Back button
-    DrawRectangleRec(backButton, LIGHTGRAY);
-    DrawTextBold("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, BLACK);
+    DrawRectangleRec(backButton, ICC_GRAY);
+    DrawTextBold("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, ICC_WHITE);
 
     EndDrawing();
 }
@@ -2489,24 +2489,24 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
     // --- Drawing ---
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(ICC_BG);
 
     // Draw Left Panel (Teams)
     DrawRectangleRec(panelLeft, (Color){ 240, 240, 240, 255 });
-    DrawRectangleLinesEx(panelLeft, 1, DARKGRAY);
-    DrawTextBold("Teams", panelLeft.x + 10, panelLeft.y + 15, 20, DARKGRAY);
-    DrawRectangleRec(newTeamBox.bounds, WHITE);
-    DrawRectangleLinesEx(newTeamBox.bounds, 1, editTeamIndex != -1 ? BLUE : GRAY);
-    DrawText(newTeamBox.text, newTeamBox.bounds.x + 5, newTeamBox.bounds.y + 5, 20, BLACK);
+    DrawRectangleLinesEx(panelLeft, 1, ICC_GRAY);
+    DrawTextBold("Teams", panelLeft.x + 10, panelLeft.y + 15, 20, ICC_GRAY);
+    DrawRectangleRec(newTeamBox.bounds, ICC_WHITE);
+    DrawRectangleLinesEx(newTeamBox.bounds, 1, editTeamIndex != -1 ? ICC_BLUE : ICC_GRAY);
+    DrawText(newTeamBox.text, newTeamBox.bounds.x + 5, newTeamBox.bounds.y + 5, 20, ICC_WHITE);
     
     const char* teamButtonText = (editTeamIndex == -1) ? "Add" : "Save";
-    DrawRectangleRec(addTeamButton, (editTeamIndex == -1) ? DARKGREEN : BLUE);
-    DrawText(teamButtonText, addTeamButton.x + 5, addTeamButton.y + 5, 20, WHITE);
+    DrawRectangleRec(addTeamButton, (editTeamIndex == -1) ? ICC_GREEN : ICC_BLUE);
+    DrawText(teamButtonText, addTeamButton.x + 5, addTeamButton.y + 5, 20, ICC_WHITE);
 
     // Scrollable area for teams
     Rectangle teamListView = { panelLeft.x + 1, newTeamBox.bounds.y + newTeamBox.bounds.height + 10, panelLeft.width - 2, panelLeft.height - newTeamBox.bounds.height - 70 };
     // TODO: Implement scrolling for team list if it gets long
-    DrawRectangleRec(teamListView, WHITE);
+    DrawRectangleRec(teamListView, ICC_WHITE);
     
     // Team list logic
     for (int i = 0; i < num_teams; i++) {
@@ -2520,8 +2520,8 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             selectedTeamIndex = i;
             showAddPlayerForm = false; // Always hide form when selecting a new team
         }
-        Color bgColor = (selectedTeamIndex == i) ? SKYBLUE : (teams[i].is_deleted ? DARKGRAY : LIGHTGRAY);
-        Color textColor = teams[i].is_deleted ? GRAY : BLACK;
+        Color bgColor = (selectedTeamIndex == i) ? SKYBLUE : (teams[i].is_deleted ? ICC_GRAY : ICC_GRAY);
+        Color textColor = teams[i].is_deleted ? ICC_GRAY : ICC_WHITE;
 
         DrawRectangleRec(itemRec, bgColor);
         char teamNameDisplay[MAX_TEAM_NAME_LEN + 24] = {0};
@@ -2534,8 +2534,8 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
         if (teams[i].is_deleted) {
             // Draw only a "Recover" button
             Rectangle recoverBtn = { editBtn.x, editBtn.y, 105, 25 };
-            DrawRectangleRec(recoverBtn, DARKGREEN);
-            DrawText("Recover", recoverBtn.x + 20, recoverBtn.y + 5, 15, WHITE);
+            DrawRectangleRec(recoverBtn, ICC_GREEN);
+            DrawText("Recover", recoverBtn.x + 20, recoverBtn.y + 5, 15, ICC_WHITE);
             if (CheckCollisionPointRec(GetMousePosition(), recoverBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 teams[i].is_deleted = false;
                 save_teams(teams, num_teams);
@@ -2543,12 +2543,12 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             }
         } else {
             // Draw Edit/Delete/Hide buttons for active teams
-            DrawRectangleRec(editBtn, ORANGE); DrawText("Edit", editBtn.x + 10, editBtn.y + 5, 15, BLACK);
-            DrawRectangleRec(deleteBtn, RED); DrawText("Del", deleteBtn.x + 10, deleteBtn.y + 5, 15, WHITE);
+            DrawRectangleRec(editBtn, ICC_YELLOW); DrawText("Edit", editBtn.x + 10, editBtn.y + 5, 15, ICC_WHITE);
+            DrawRectangleRec(deleteBtn, ICC_RED); DrawText("Del", deleteBtn.x + 10, deleteBtn.y + 5, 15, ICC_WHITE);
 
             const char* hideText = teams[i].is_hidden ? "Show" : "Hide";
             DrawRectangleRec(hideBtn, teams[i].is_hidden ? SKYBLUE : VIOLET);
-            DrawText(hideText, hideBtn.x + 10, hideBtn.y + 5, 15, WHITE);
+            DrawText(hideText, hideBtn.x + 10, hideBtn.y + 5, 15, ICC_WHITE);
 
             if (CheckCollisionPointRec(GetMousePosition(), editBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 editTeamIndex = i;
@@ -2567,12 +2567,12 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
     // Draw Right Panel (Players)
     DrawRectangleRec(panelRight, (Color){ 250, 250, 250, 255 });
-    DrawRectangleLinesEx(panelRight, 1, DARKGRAY);
+    DrawRectangleLinesEx(panelRight, 1, ICC_GRAY);
 
     if (showAddPlayerForm) {
         // --- DRAW THE DETAILED ADD PLAYER FORM ---
         const char* formTitle = (editPlayerIndex == -1) ? "Create New Player" : "Edit Player";
-        DrawTextBold(formTitle, panelRight.x + 10, panelRight.y + 15, 20, DARKBLUE);
+        DrawTextBold(formTitle, panelRight.x + 10, panelRight.y + 15, 20, ICC_BLUE);
         
         // Form content area
         Rectangle formView = { panelRight.x + 1, panelRight.y + 50, panelRight.width - 2, panelRight.height - 110 };
@@ -2592,39 +2592,39 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
         BeginScissorMode(formView.x, formView.y, formView.width, formView.height);
         // --- Column 1: Primary Details ---
-        DrawRectangle(COL1_X - 10, currentY, (formView.width / 2.0f) - 20, 30, DARKGRAY);
-        DrawTextBold("Primary Details", COL1_X, currentY + 5, 20, WHITE);
+        DrawRectangle(COL1_X - 10, currentY, (formView.width / 2.0f) - 20, 30, ICC_GRAY);
+        DrawTextBold("Primary Details", COL1_X, currentY + 5, 20, ICC_WHITE);
         currentY += 40;
 
         // Player Name
-        DrawTextBold("Player Name:", COL1_X, currentY - 15, 10, GRAY);
+        DrawTextBold("Player Name:", COL1_X, currentY - 15, 10, ICC_GRAY);
         addPlayerNameBox.bounds = (Rectangle){ COL1_X, currentY, (formView.width / 2.0f) - 40, 35 }; // This was line 1206
-        DrawRectangleRec(addPlayerNameBox.bounds, WHITE); DrawRectangleLinesEx(addPlayerNameBox.bounds, 1, GRAY);
-        DrawText(addPlayerNameBox.text, addPlayerNameBox.bounds.x + 10, addPlayerNameBox.bounds.y + 8, 20, BLACK);
+        DrawRectangleRec(addPlayerNameBox.bounds, ICC_WHITE); DrawRectangleLinesEx(addPlayerNameBox.bounds, 1, ICC_GRAY);
+        DrawText(addPlayerNameBox.text, addPlayerNameBox.bounds.x + 10, addPlayerNameBox.bounds.y + 8, 20, ICC_WHITE);
         currentY += ROW_HEIGHT;
 
         // Player Type
-        DrawTextBold("Player Role:", COL1_X, currentY - 15, 10, GRAY);
+        DrawTextBold("Player Role:", COL1_X, currentY - 15, 10, ICC_GRAY);
         for (int i = 0; i < 4; i++) {
             Rectangle typeBtn = { COL1_X + (i * 120), currentY, 110, 35 };
             bool isSelected = (new_player_template.type == (PlayerType)i);
-            DrawRectangleRec(typeBtn, isSelected ? DARKBLUE : LIGHTGRAY);
-            DrawText(playerTypeNames[i], typeBtn.x + 10, typeBtn.y + 8, 20, isSelected ? WHITE : BLACK);
+            DrawRectangleRec(typeBtn, isSelected ? ICC_BLUE : ICC_GRAY);
+            DrawText(playerTypeNames[i], typeBtn.x + 10, typeBtn.y + 8, 20, isSelected ? ICC_WHITE : ICC_WHITE);
             if (CheckCollisionPointRec(GetMousePosition(), typeBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) new_player_template.type = (PlayerType)i;
         }
         currentY += ROW_HEIGHT;
 
         // Batting and Bowling Style
-        DrawTextBold("Batting Style:", COL1_X, currentY - 15, 10, GRAY);
+        DrawTextBold("Batting Style:", COL1_X, currentY - 15, 10, ICC_GRAY);
         Rectangle batStyleBtn = { COL1_X, currentY, 230, 35 };
-        DrawRectangleRec(batStyleBtn, LIGHTGRAY);
-        DrawText(batStyleNames[new_player_template.batting_style], batStyleBtn.x + 10, batStyleBtn.y + 8, 20, BLACK);
+        DrawRectangleRec(batStyleBtn, ICC_GRAY);
+        DrawText(batStyleNames[new_player_template.batting_style], batStyleBtn.x + 10, batStyleBtn.y + 8, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), batStyleBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) new_player_template.batting_style = (BattingStyle)!new_player_template.batting_style;
 
-        DrawTextBold("Bowling Style:", COL1_X + 250, currentY - 15, 10, GRAY);
+        DrawTextBold("Bowling Style:", COL1_X + 250, currentY - 15, 10, ICC_GRAY);
         Rectangle bowlStyleBtn = { COL1_X + 250, currentY, 230, 35 };
-        DrawRectangleRec(bowlStyleBtn, LIGHTGRAY);
-        DrawText(bowlStyleNames[new_player_template.bowling_style], bowlStyleBtn.x + 10, bowlStyleBtn.y + 8, 20, BLACK);
+        DrawRectangleRec(bowlStyleBtn, ICC_GRAY);
+        DrawText(bowlStyleNames[new_player_template.bowling_style], bowlStyleBtn.x + 10, bowlStyleBtn.y + 8, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), bowlStyleBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             new_player_template.bowling_style = (BowlingStyle)((new_player_template.bowling_style + 1) % (sizeof(bowlStyleNames)/sizeof(bowlStyleNames[0])));
         }
@@ -2632,78 +2632,78 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
         // Status (Wicketkeeper, Active)
         Rectangle wkCheck = { COL1_X, currentY, 25, 25 };
-        DrawRectangleRec(wkCheck, LIGHTGRAY);
-        if (new_player_template.is_wicketkeeper) DrawRectangle(wkCheck.x + 5, wkCheck.y + 5, 15, 15, DARKBLUE);
-        DrawTextBold("Is Wicketkeeper?", wkCheck.x + 35, wkCheck.y + 5, 20, BLACK);
+        DrawRectangleRec(wkCheck, ICC_GRAY);
+        if (new_player_template.is_wicketkeeper) DrawRectangle(wkCheck.x + 5, wkCheck.y + 5, 15, 15, ICC_BLUE);
+        DrawTextBold("Is Wicketkeeper?", wkCheck.x + 35, wkCheck.y + 5, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){wkCheck.x, wkCheck.y, 200, 25}) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) new_player_template.is_wicketkeeper = !new_player_template.is_wicketkeeper;
 
         Rectangle activeCheck = { COL1_X + 250, currentY, 25, 25 };
-        DrawRectangleRec(activeCheck, LIGHTGRAY);
-        if (new_player_template.is_active) DrawRectangle(activeCheck.x + 5, activeCheck.y + 5, 15, 15, DARKGREEN);
-        DrawTextBold("Is Active?", activeCheck.x + 35, activeCheck.y + 5, 20, BLACK);
+        DrawRectangleRec(activeCheck, ICC_GRAY);
+        if (new_player_template.is_active) DrawRectangle(activeCheck.x + 5, activeCheck.y + 5, 15, 15, ICC_GREEN);
+        DrawTextBold("Is Active?", activeCheck.x + 35, activeCheck.y + 5, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){activeCheck.x, activeCheck.y, 150, 25}) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) new_player_template.is_active = !new_player_template.is_active;
         currentY += ROW_HEIGHT;
 
         // --- Column 2: Skills and Stats ---
         currentY = formView.y + 10 + formScroll.y; // Reset Y for the second column
-        DrawRectangle(COL2_X - 10, currentY, (formView.width / 2.0f) - 20, 30, DARKGRAY);
-        DrawTextBold("Skills & Career Stats", COL2_X, currentY + 5, 20, WHITE);
+        DrawRectangle(COL2_X - 10, currentY, (formView.width / 2.0f) - 20, 30, ICC_GRAY);
+        DrawTextBold("Skills & Career Stats", COL2_X, currentY + 5, 20, ICC_WHITE);
         currentY += 40;
 
         // Skills
-        DrawTextBold("Skills (1-100)", COL2_X, currentY - 15, 10, GRAY);
+        DrawTextBold("Skills (1-100)", COL2_X, currentY - 15, 10, ICC_GRAY);
         batSkillBox.bounds = (Rectangle){ COL2_X, currentY, 100, 35 };
         bowlSkillBox.bounds = (Rectangle){ COL2_X + 120, currentY, 100, 35 };
         fieldSkillBox.bounds = (Rectangle){ COL2_X + 240, currentY, 100, 35 };
-        DrawText("Bat", batSkillBox.bounds.x, batSkillBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(batSkillBox.bounds, WHITE); DrawText(batSkillBox.text, batSkillBox.bounds.x + 10, batSkillBox.bounds.y + 8, 20, BLACK);
-        DrawText("Bowl", bowlSkillBox.bounds.x, bowlSkillBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(bowlSkillBox.bounds, WHITE); DrawText(bowlSkillBox.text, bowlSkillBox.bounds.x + 10, bowlSkillBox.bounds.y + 8, 20, BLACK);
-        DrawText("Field", fieldSkillBox.bounds.x, fieldSkillBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(fieldSkillBox.bounds, WHITE); DrawText(fieldSkillBox.text, fieldSkillBox.bounds.x + 10, fieldSkillBox.bounds.y + 8, 20, BLACK);
+        DrawText("Bat", batSkillBox.bounds.x, batSkillBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(batSkillBox.bounds, ICC_WHITE); DrawText(batSkillBox.text, batSkillBox.bounds.x + 10, batSkillBox.bounds.y + 8, 20, ICC_WHITE);
+        DrawText("Bowl", bowlSkillBox.bounds.x, bowlSkillBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(bowlSkillBox.bounds, ICC_WHITE); DrawText(bowlSkillBox.text, bowlSkillBox.bounds.x + 10, bowlSkillBox.bounds.y + 8, 20, ICC_WHITE);
+        DrawText("Field", fieldSkillBox.bounds.x, fieldSkillBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(fieldSkillBox.bounds, ICC_WHITE); DrawText(fieldSkillBox.text, fieldSkillBox.bounds.x + 10, fieldSkillBox.bounds.y + 8, 20, ICC_WHITE);
         currentY += ROW_HEIGHT;
 
         // Career Stats
-        DrawTextBold("Career Stats (Initial Values)", COL2_X, currentY - 15, 10, GRAY);
+        DrawTextBold("Career Stats (Initial Values)", COL2_X, currentY - 15, 10, ICC_GRAY);
         matchesBox.bounds = (Rectangle){ COL2_X, currentY, 100, 35 };
         runsBox.bounds = (Rectangle){ COL2_X + 120, currentY, 100, 35 };
         wicketsBox.bounds = (Rectangle){ COL2_X + 240, currentY, 100, 35 };
         stumpsBox.bounds = (Rectangle){ COL2_X, currentY + 45, 100, 35 };
         runOutsBox.bounds = (Rectangle){ COL2_X + 120, currentY + 45, 100, 35 };
-        DrawText("Matches", matchesBox.bounds.x, matchesBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(matchesBox.bounds, WHITE); DrawText(matchesBox.text, matchesBox.bounds.x + 10, matchesBox.bounds.y + 8, 20, BLACK);
-        DrawText("Runs", runsBox.bounds.x, runsBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(runsBox.bounds, WHITE); DrawText(runsBox.text, runsBox.bounds.x + 10, runsBox.bounds.y + 8, 20, BLACK);
-        DrawText("Wickets", wicketsBox.bounds.x, wicketsBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(wicketsBox.bounds, WHITE); DrawText(wicketsBox.text, wicketsBox.bounds.x + 10, wicketsBox.bounds.y + 8, 20, BLACK);
-        DrawText("Stumps", stumpsBox.bounds.x, stumpsBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(stumpsBox.bounds, WHITE); DrawText(stumpsBox.text, stumpsBox.bounds.x + 10, stumpsBox.bounds.y + 8, 20, BLACK);
-        DrawText("RunOuts", runOutsBox.bounds.x, runOutsBox.bounds.y + 37, 10, GRAY);
-        DrawRectangleRec(runOutsBox.bounds, WHITE); DrawText(runOutsBox.text, runOutsBox.bounds.x + 10, runOutsBox.bounds.y + 8, 20, BLACK);
+        DrawText("Matches", matchesBox.bounds.x, matchesBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(matchesBox.bounds, ICC_WHITE); DrawText(matchesBox.text, matchesBox.bounds.x + 10, matchesBox.bounds.y + 8, 20, ICC_WHITE);
+        DrawText("Runs", runsBox.bounds.x, runsBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(runsBox.bounds, ICC_WHITE); DrawText(runsBox.text, runsBox.bounds.x + 10, runsBox.bounds.y + 8, 20, ICC_WHITE);
+        DrawText("Wickets", wicketsBox.bounds.x, wicketsBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(wicketsBox.bounds, ICC_WHITE); DrawText(wicketsBox.text, wicketsBox.bounds.x + 10, wicketsBox.bounds.y + 8, 20, ICC_WHITE);
+        DrawText("Stumps", stumpsBox.bounds.x, stumpsBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(stumpsBox.bounds, ICC_WHITE); DrawText(stumpsBox.text, stumpsBox.bounds.x + 10, stumpsBox.bounds.y + 8, 20, ICC_WHITE);
+        DrawText("RunOuts", runOutsBox.bounds.x, runOutsBox.bounds.y + 37, 10, ICC_GRAY);
+        DrawRectangleRec(runOutsBox.bounds, ICC_WHITE); DrawText(runOutsBox.text, runOutsBox.bounds.x + 10, runOutsBox.bounds.y + 8, 20, ICC_WHITE);
 
         EndScissorMode();
 
         // Draw Save/Cancel buttons for the form
         const char* saveButtonText = (editPlayerIndex == -1) ? "Save Player" : "Save Changes";
-        DrawRectangleRec(savePlayerButton, (editPlayerIndex == -1) ? DARKGREEN : BLUE);
-        DrawTextBold(saveButtonText, savePlayerButton.x + 20, savePlayerButton.y + 10, 20, WHITE);
-        DrawRectangleRec(cancelPlayerButton, MAROON);
-        DrawTextBold("Cancel", cancelPlayerButton.x + 40, cancelPlayerButton.y + 10, 20, WHITE);
+        DrawRectangleRec(savePlayerButton, (editPlayerIndex == -1) ? ICC_GREEN : ICC_BLUE);
+        DrawTextBold(saveButtonText, savePlayerButton.x + 20, savePlayerButton.y + 10, 20, ICC_WHITE);
+        DrawRectangleRec(cancelPlayerButton, ICC_RED);
+        DrawTextBold("Cancel", cancelPlayerButton.x + 40, cancelPlayerButton.y + 10, 20, ICC_WHITE);
 
 
     } else if (selectedTeamIndex != -1) {
         if (teams[selectedTeamIndex].is_deleted) {
-            DrawTextBold("This team has been deleted.", panelRight.x + 10, panelRight.y + 15, 20, MAROON);
+            DrawTextBold("This team has been deleted.", panelRight.x + 10, panelRight.y + 15, 20, ICC_RED);
         } else {
             // --- DRAW THE PLAYER LIST ---
         char panelTitle[128];
         sprintf(panelTitle, "Players for %s", teams[selectedTeamIndex].name);
-        DrawTextBold(panelTitle, panelRight.x + 10, panelRight.y + 15, 20, DARKBLUE);
+        DrawTextBold(panelTitle, panelRight.x + 10, panelRight.y + 15, 20, ICC_BLUE);
 
         // Button to show the add player form
         Rectangle openAddPlayerFormButton = { panelRight.x + panelRight.width - 220, panelRight.y + 10, 200, 30 };
-        DrawRectangleRec(openAddPlayerFormButton, DARKGREEN);
-        DrawTextBold("Add New Player", openAddPlayerFormButton.x + 20, openAddPlayerFormButton.y + 5, 20, WHITE);
+        DrawRectangleRec(openAddPlayerFormButton, ICC_GREEN);
+        DrawTextBold("Add New Player", openAddPlayerFormButton.x + 20, openAddPlayerFormButton.y + 5, 20, ICC_WHITE);
         if (CheckCollisionPointRec(GetMousePosition(), openAddPlayerFormButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             showAddPlayerForm = true;
             editPlayerIndex = -1; // Ensure we are in "add" mode
@@ -2781,7 +2781,7 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
         Rectangle playerListView = { panelRight.x + 1, panelRight.y + 50, panelRight.width - 2, panelRight.height - 60 };
         
         Rectangle view = playerListView; // The area where content is drawn
-        DrawRectangleRec(view, WHITE); // Draw background for the whole area
+        DrawRectangleRec(view, ICC_WHITE); // Draw background for the whole area
 
         bool horizScrollbarRequired = contentWidth > view.width;
         bool vertScrollbarRequired = contentHeight > view.height;
@@ -2817,7 +2817,7 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             col_x[i] = col_x[i-1] + col_widths[i-1] + col_padding;
         }
         for (int i = 0; i < num_cols; i++) {
-            DrawTextBold(col_headers[i], col_x[i], scissorView.y + 10, 20, DARKGRAY);
+            DrawTextBold(col_headers[i], col_x[i], scissorView.y + 10, 20, ICC_GRAY);
         }
 
         // Draw Players
@@ -2826,14 +2826,14 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             float y_pos = scissorView.y + 40 + (i * 25) + playerScroll.y;
              if (y_pos < scissorView.y - 25 || y_pos > scissorView.y + scissorView.height) continue; // Culling
             
-            Color textColor = BLACK;
+            Color textColor = ICC_WHITE;
             char name_suffix[16] = {0};
 
             if (p->is_wicketkeeper) {
                 strcat(name_suffix, " (WK)");
             }
             if (i == selectedTeam->captain_idx) {
-                textColor = GOLD;
+                textColor = ICC_YELLOW;
                 strcat(name_suffix, " (C)");
             } else if (i == selectedTeam->vice_captain_idx) {
                 textColor = SILVER;
@@ -2844,14 +2844,14 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
             snprintf(player_display_name, sizeof(player_display_name), "%s%s", p->name, name_suffix);
 
             DrawText(player_display_name, col_x[0], y_pos, 20, textColor);
-            DrawText(playerTypeNames[p->type], col_x[1], y_pos, 20, DARKGRAY);
-            DrawText(p->batting_style == BATTING_STYLE_RHB ? "RHB" : "LHB", col_x[2], y_pos, 20, DARKGRAY);
-            DrawText(bowlStyleNames[p->bowling_style], col_x[3], y_pos, 20, DARKGRAY);
-            DrawText(p->is_wicketkeeper ? "Yes" : "No", col_x[4], y_pos, 20, DARKGRAY);
-            DrawText(p->is_active ? "Yes" : "No", col_x[5], y_pos, 20, DARKGRAY);
-            DrawText(TextFormat("%d", p->batting_skill), col_x[6], y_pos, 20, BLUE);
-            DrawText(TextFormat("%d", p->bowling_skill), col_x[7], y_pos, 20, BLUE);
-            DrawText(TextFormat("%d", p->fielding_skill), col_x[8], y_pos, 20, BLUE);
+            DrawText(playerTypeNames[p->type], col_x[1], y_pos, 20, ICC_GRAY);
+            DrawText(p->batting_style == BATTING_STYLE_RHB ? "RHB" : "LHB", col_x[2], y_pos, 20, ICC_GRAY);
+            DrawText(bowlStyleNames[p->bowling_style], col_x[3], y_pos, 20, ICC_GRAY);
+            DrawText(p->is_wicketkeeper ? "Yes" : "No", col_x[4], y_pos, 20, ICC_GRAY);
+            DrawText(p->is_active ? "Yes" : "No", col_x[5], y_pos, 20, ICC_GRAY);
+            DrawText(TextFormat("%d", p->batting_skill), col_x[6], y_pos, 20, ICC_BLUE);
+            DrawText(TextFormat("%d", p->bowling_skill), col_x[7], y_pos, 20, ICC_BLUE);
+            DrawText(TextFormat("%d", p->fielding_skill), col_x[8], y_pos, 20, ICC_BLUE);
             DrawText(TextFormat("%d", p->matches_played), col_x[9], y_pos, 20, DARKPURPLE);
             DrawText(TextFormat("%d", p->total_runs), col_x[10], y_pos, 20, DARKPURPLE);
             DrawText(TextFormat("%d", p->total_wickets), col_x[11], y_pos, 20, DARKPURPLE);
@@ -2860,8 +2860,8 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
 
             Rectangle editBtn = { col_x[14], y_pos, 50, 20 };
             Rectangle deleteBtn = { col_x[14] + 55, y_pos, 60, 20 };
-            DrawRectangleRec(editBtn, ORANGE); DrawText("Edit", editBtn.x + 10, editBtn.y + 2, 15, BLACK);
-            DrawRectangleRec(deleteBtn, RED); DrawText("Delete", deleteBtn.x + 5, deleteBtn.y + 2, 15, WHITE);
+            DrawRectangleRec(editBtn, ICC_YELLOW); DrawText("Edit", editBtn.x + 10, editBtn.y + 2, 15, ICC_WHITE);
+            DrawRectangleRec(deleteBtn, ICC_RED); DrawText("Delete", deleteBtn.x + 5, deleteBtn.y + 2, 15, ICC_WHITE);
 
             if (CheckCollisionPointRec(GetMousePosition(), editBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 editPlayerIndex = i;
@@ -2894,13 +2894,13 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
         // --- Draw and Handle Vertical Scrollbar ---
         if (vertScrollbarRequired) {
             Rectangle scrollBarArea = { scissorView.x + scissorView.width, scissorView.y, 10, scissorView.height };
-            DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+            DrawRectangleRec(scrollBarArea, ICC_GRAY);
             
             float handleHeight = (scissorView.height / contentHeight) * scissorView.height;
             if (handleHeight < 20) handleHeight = 20; // Minimum handle size
             float handleY = scissorView.y + (-playerScroll.y / (contentHeight - scissorView.height)) * (scissorView.height - handleHeight);
             Rectangle scrollHandle = { scrollBarArea.x, handleY, 10, handleHeight };
-            DrawRectangleRec(scrollHandle, DARKGRAY);
+            DrawRectangleRec(scrollHandle, ICC_GRAY);
 
             static bool isDragging = false;
             if (CheckCollisionPointRec(GetMousePosition(), scrollHandle) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isDragging = true;
@@ -2916,13 +2916,13 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
         // --- Draw and Handle Horizontal Scrollbar ---
         if (horizScrollbarRequired) {
             Rectangle scrollBarArea = { scissorView.x, scissorView.y + scissorView.height, scissorView.width, 10 };
-            DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+            DrawRectangleRec(scrollBarArea, ICC_GRAY);
             
             float handleWidth = (scissorView.width / contentWidth) * scissorView.width;
             if (handleWidth < 20) handleWidth = 20; // Minimum handle size
             float handleX = scissorView.x + (-playerScroll.x / (contentWidth - scissorView.width)) * (scissorView.width - handleWidth);
             Rectangle scrollHandle = { handleX, scrollBarArea.y, handleWidth, 10 };
-            DrawRectangleRec(scrollHandle, DARKGRAY);
+            DrawRectangleRec(scrollHandle, ICC_GRAY);
 
             static bool isDragging = false;
             if (CheckCollisionPointRec(GetMousePosition(), scrollHandle) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isDragging = true;
@@ -2936,14 +2936,14 @@ static void UpdateDrawTeamsScreen(GuiState *state) {
         }
     }
     } else {
-        DrawTextBold("Select a team to view players", panelRight.x + 10, panelRight.y + 15, 20, GRAY);
+        DrawTextBold("Select a team to view players", panelRight.x + 10, panelRight.y + 15, 20, ICC_GRAY);
     }
 
     // Draw Back Button
 
     // Draw Back Button
-    DrawRectangleRec(backButton, MAROON);
-    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, WHITE);
+    DrawRectangleRec(backButton, ICC_RED);
+    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, ICC_WHITE);
 
     EndDrawing();
 }
@@ -2958,10 +2958,10 @@ static void UpdateDrawPlaceholderScreen(GuiState *state, const char *title) {
     }
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
-    DrawText(title, GetScreenWidth()/2 - MeasureText(title, 40)/2, 150, 40, DARKGRAY);
-    DrawRectangleRec(backButton, LIGHTGRAY);
-    DrawText("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, BLACK);
+    ClearBackground(ICC_BG);
+    DrawText(title, GetScreenWidth()/2 - MeasureText(title, 40)/2, 150, 40, ICC_GRAY);
+    DrawRectangleRec(backButton, ICC_GRAY);
+    DrawText("Back to Menu", backButton.x + backButton.width/2 - MeasureText("Back to Menu", 20)/2, backButton.y + 10, 20, ICC_WHITE);
     EndDrawing();
 }
 
@@ -2984,15 +2984,15 @@ static void UpdateDrawMatchSetupScreen(GuiState *state) {
     const Rectangle backButton = { 20, screenHeight - 60, 150, 40 };
 
     BeginDrawing();
-    ClearBackground(RAYWHITE);
-    DrawTextBold(title, screenWidth / 2 - MeasureText(title, 40) / 2, startY - 80, 40, DARKGRAY);
+    ClearBackground(ICC_BG);
+    DrawTextBold(title, screenWidth / 2 - MeasureText(title, 40) / 2, startY - 80, 40, ICC_GRAY);
 
     for (int i = 0; i < numOptions; i++) {
         Rectangle buttonRect = { screenWidth / 2.0f - buttonWidth / 2.0f, startY + i * (buttonHeight + buttonSpacing), buttonWidth, buttonHeight };
         bool hovered = CheckCollisionPointRec(GetMousePosition(), buttonRect);
 
-        DrawRectangleRec(buttonRect, hovered ? SKYBLUE : LIGHTGRAY);
-        DrawText(options[i], buttonRect.x + buttonRect.width / 2 - MeasureText(options[i], 20) / 2, buttonRect.y + 15, 20, BLACK);
+        DrawRectangleRec(buttonRect, hovered ? SKYBLUE : ICC_GRAY);
+        DrawText(options[i], buttonRect.x + buttonRect.width / 2 - MeasureText(options[i], 20) / 2, buttonRect.y + 15, 20, ICC_WHITE);
 
         if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             if (strcmp(options[i], "One Day World Cup") == 0) {
@@ -3006,8 +3006,8 @@ static void UpdateDrawMatchSetupScreen(GuiState *state) {
 
 
     // Draw Back Button
-    DrawRectangleRec(backButton, MAROON);
-    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, WHITE);
+    DrawRectangleRec(backButton, ICC_RED);
+    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, ICC_WHITE);
     if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) ChangeScreen(state, state->previousScreen);
 
     EndDrawing();
@@ -3128,15 +3128,15 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
 
     // --- Drawing ---
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(ICC_BG);
 
     switch (currentStep) {
         case WC_STEP_TEAM_SELECTION: {
-            DrawTextBold("World Cup Setup: Select Teams", GetScreenWidth() / 2 - MeasureText("World Cup Setup: Select Teams", 40) / 2, 20, 40, DARKGRAY);
-            DrawText("Choose the teams that will participate in the tournament.", GetScreenWidth() / 2 - MeasureText("Choose the teams that will participate in the tournament.", 20) / 2, 70, 20, GRAY);
+            DrawTextBold("World Cup Setup: Select Teams", GetScreenWidth() / 2 - MeasureText("World Cup Setup: Select Teams", 40) / 2, 20, 40, ICC_GRAY);
+            DrawText("Choose the teams that will participate in the tournament.", GetScreenWidth() / 2 - MeasureText("Choose the teams that will participate in the tournament.", 20) / 2, 70, 20, ICC_GRAY);
 
             if (num_all_teams == 0) {
-                DrawText("No teams available. Please create teams first.", 50, 150, 20, RED);
+                DrawText("No teams available. Please create teams first.", 50, 150, 20, ICC_RED);
             } else {
                 const int buttonWidth = 300;
                 const int buttonHeight = 40;
@@ -3151,8 +3151,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                     Rectangle teamButton = { 50 + col * (buttonWidth + 20), 120 + row * (buttonHeight + 10), buttonWidth, buttonHeight };
                     
                     bool isSelected = selected_teams_mask[i];
-                    DrawRectangleRec(teamButton, isSelected ? DARKBLUE : LIGHTGRAY);
-                    DrawText(all_teams[i].name, teamButton.x + 15, teamButton.y + 10, 20, isSelected ? WHITE : BLACK);
+                    DrawRectangleRec(teamButton, isSelected ? ICC_BLUE : ICC_GRAY);
+                    DrawText(all_teams[i].name, teamButton.x + 15, teamButton.y + 10, 20, isSelected ? ICC_WHITE : ICC_WHITE);
 
                     if (CheckCollisionPointRec(GetMousePosition(), teamButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                         selected_teams_mask[i] = !selected_teams_mask[i];
@@ -3165,8 +3165,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 float startX = (GetScreenWidth() - totalButtonsWidth) / 2;
 
                 Rectangle selectAllButton = { startX, buttonRowY, 150, 40 };
-                DrawRectangleRec(selectAllButton, DARKBLUE);
-                DrawTextBold("Select All", selectAllButton.x + 35, selectAllButton.y + 10, 20, WHITE);
+                DrawRectangleRec(selectAllButton, ICC_BLUE);
+                DrawTextBold("Select All", selectAllButton.x + 35, selectAllButton.y + 10, 20, ICC_WHITE);
                 if (CheckCollisionPointRec(GetMousePosition(), selectAllButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     for (int i = 0; i < num_all_teams; i++) {
                         if (!all_teams[i].is_deleted && !all_teams[i].is_hidden) {
@@ -3176,8 +3176,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 }
 
                 Rectangle deselectAllButton = { startX + 160, buttonRowY, 150, 40 };
-                DrawRectangleRec(deselectAllButton, MAROON);
-                DrawTextBold("Deselect All", deselectAllButton.x + 25, deselectAllButton.y + 10, 20, WHITE);
+                DrawRectangleRec(deselectAllButton, ICC_RED);
+                DrawTextBold("Deselect All", deselectAllButton.x + 25, deselectAllButton.y + 10, 20, ICC_WHITE);
                 if (CheckCollisionPointRec(GetMousePosition(), deselectAllButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     for (int i = 0; i < num_all_teams; i++) {
                         selected_teams_mask[i] = false;
@@ -3186,8 +3186,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
 
                 // "Next" button to proceed to squad selection
                 Rectangle nextButton = { GetScreenWidth() - 200, buttonRowY, 150, 40 };
-                DrawRectangleRec(nextButton, DARKGREEN);
-                DrawTextBold("Next", nextButton.x + 50, nextButton.y + 10, 20, WHITE);
+    DrawRectangleRec(nextButton, ICC_GREEN);
+                DrawTextBold("Next", nextButton.x + 50, nextButton.y + 10, 20, ICC_WHITE);
                 if (CheckCollisionPointRec(GetMousePosition(), nextButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     // Count selected teams and prepare for squad selection
                     num_wc_teams = 0;
@@ -3211,14 +3211,14 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                     }
                 }
                 if (validation_error[0] != '\0') {
-                    DrawText(validation_error, GetScreenWidth() - MeasureText(validation_error, 20) - 220, GetScreenHeight() - 50, 20, RED);
+                    DrawText(validation_error, GetScreenWidth() - MeasureText(validation_error, 20) - 220, GetScreenHeight() - 50, 20, ICC_RED);
                 }
             }
             break;
         }
         case WC_STEP_USER_TEAM_CHOICE: {
-            DrawTextBold("Choose Your Team", GetScreenWidth() / 2 - MeasureText("Choose Your Team", 40) / 2, 20, 40, DARKGRAY);
-            DrawText("Select the team you want to play as for the World Cup.", GetScreenWidth() / 2 - MeasureText("Select the team you want to play as for the World Cup.", 20) / 2, 70, 20, GRAY);
+            DrawTextBold("Choose Your Team", GetScreenWidth() / 2 - MeasureText("Choose Your Team", 40) / 2, 20, 40, ICC_GRAY);
+            DrawText("Select the team you want to play as for the World Cup.", GetScreenWidth() / 2 - MeasureText("Select the team you want to play as for the World Cup.", 20) / 2, 70, 20, ICC_GRAY);
 
             const int buttonWidth = 300;
             const int buttonHeight = 40;
@@ -3228,8 +3228,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 int col = i % columns;
                 int row = i / columns;
                 Rectangle teamButton = { 50 + col * (buttonWidth + 20), 120 + row * (buttonHeight + 10), buttonWidth, buttonHeight };
-                DrawRectangleRec(teamButton, LIGHTGRAY);
-                DrawText(wc_teams[i].name, teamButton.x + 15, teamButton.y + 10, 20, BLACK);
+                DrawRectangleRec(teamButton, ICC_GRAY);
+                DrawText(wc_teams[i].name, teamButton.x + 15, teamButton.y + 10, 20, ICC_WHITE);
 
                 if (CheckCollisionPointRec(GetMousePosition(), teamButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     user_team_idx = i;
@@ -3294,11 +3294,11 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             break;
         }
         case WC_STEP_FIXTURES: {
-            DrawTextBold("Tournament Fixtures", GetScreenWidth() / 2 - MeasureText("Tournament Fixtures", 40) / 2, 20, 40, DARKGRAY);
-            DrawText("All teams will play each other once.", GetScreenWidth() / 2 - MeasureText("All teams will play each other once.", 20) / 2, 70, 20, GRAY);
+            DrawTextBold("Tournament Fixtures", GetScreenWidth() / 2 - MeasureText("Tournament Fixtures", 40) / 2, 20, 40, ICC_GRAY);
+            DrawText("All teams will play each other once.", GetScreenWidth() / 2 - MeasureText("All teams will play each other once.", 20) / 2, 70, 20, ICC_GRAY);
 
             Rectangle view = { 50, 110, GetScreenWidth() - 100, GetScreenHeight() - 220 };
-            DrawRectangleLinesEx(view, 1, DARKGRAY);
+            DrawRectangleLinesEx(view, 1, ICC_GRAY);
 
             const float itemHeight = 30.0f;
             if (CheckCollisionPointRec(GetMousePosition(), view)) {
@@ -3317,13 +3317,13 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 strftime(date_str, sizeof(date_str), "%a, %b %d", match_tm);
                 char match_text[512];
                 sprintf(match_text, "Match %d: %s vs %s  |  %s @ 10:00 AM", i + 1, wc_matches[i].teamA->name, wc_matches[i].teamB->name, date_str);
-                DrawText(match_text, view.x + 20, y_pos, 20, DARKGRAY);
+                DrawText(match_text, view.x + 20, y_pos, 20, ICC_GRAY);
             }
             EndScissorMode();
 
             Rectangle startButton = { GetScreenWidth() - 220, GetScreenHeight() - 60, 200, 40 };
-            DrawRectangleRec(startButton, DARKGREEN);
-            DrawTextBold("Start Tournament", startButton.x + 20, startButton.y + 10, 20, WHITE);
+            DrawRectangleRec(startButton, ICC_GREEN);
+            DrawTextBold("Start Tournament", startButton.x + 20, startButton.y + 10, 20, ICC_WHITE);
             if (CheckCollisionPointRec(GetMousePosition(), startButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 current_match_idx = 0;
                 tournament_start_date = time(NULL); // Set start date to today
@@ -3343,15 +3343,15 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             strftime(date_str, sizeof(date_str), "%A, %B %d, %Y", match_tm);
 
             sprintf(title, "%s vs %s", currentMatch->teamA->name, currentMatch->teamB->name);
-            DrawTextBold(title, GetScreenWidth() / 2 - MeasureText(title, 40) / 2, 20, 40, DARKGRAY);
-            DrawText(date_str, GetScreenWidth() / 2 - MeasureText(date_str, 20) / 2, 70, 20, GRAY);
+            DrawTextBold(title, GetScreenWidth() / 2 - MeasureText(title, 40) / 2, 20, 40, ICC_GRAY);
+            DrawText(date_str, GetScreenWidth() / 2 - MeasureText(date_str, 20) / 2, 70, 20, ICC_GRAY);
             
             // --- Distinguish between User and AI matches ---
             Team* user_team = &wc_teams[user_team_idx];
             bool is_user_match = (currentMatch->teamA == user_team) || (currentMatch->teamB == user_team);
 
             if (!is_user_match) {
-                DrawText("Simulating AI vs AI match...", GetScreenWidth()/2 - MeasureText("Simulating AI vs AI match...", 30)/2, GetScreenHeight()/2, 30, DARKGRAY);
+                DrawText("Simulating AI vs AI match...", GetScreenWidth()/2 - MeasureText("Simulating AI vs AI match...", 30)/2, GetScreenHeight()/2, 30, ICC_GRAY);
                 
                 // Use the toss_end_time as a delay timer before skipping to the next match
                 if (toss_end_time == 0) toss_end_time = GetTime() + 1.5; // Initial delay
@@ -3377,8 +3377,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                     toss_result = (rand() % 2); // 0 for Heads, 1 for Tails
                     toss_end_time = GetTime() + 5.0; // Set time to hold the result for 5 seconds
                 }
-                DrawCircle(GetScreenWidth() / 2, GetScreenHeight() / 2, 100, GOLD);
-                DrawTextPro(GetFontDefault(), "H", (Vector2){GetScreenWidth()/2, GetScreenHeight()/2}, (Vector2){50,50}, toss_rotation, 100, 10, BLACK);
+                DrawCircle(GetScreenWidth() / 2, GetScreenHeight() / 2, 100, ICC_YELLOW);
+                DrawTextPro(GetFontDefault(), "H", (Vector2){GetScreenWidth()/2, GetScreenHeight()/2}, (Vector2){50,50}, toss_rotation, 100, 10, ICC_WHITE);
             } else if (toss_call == -1) { // Ask for user's call
                 if (!IsSoundPlaying(sounds->toss)) PlaySound(sounds->toss);
                 // --- Draw the captains and umpire before the toss ---
@@ -3386,19 +3386,19 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 Vector2 captainBPos = { GetScreenWidth()/2 + 200, GetScreenHeight()/2 };
                 Vector2 umpirePos = { GetScreenWidth()/2, GetScreenHeight()/2 - 50 };
 
-                DrawPlayerFigure(captainAPos, BLUE, false, currentMatch->teamA->name, false);
-                DrawText(currentMatch->teamA->players[0].name, captainAPos.x - MeasureText(currentMatch->teamA->players[0].name, 10)/2, captainAPos.y + 30, 10, BLACK);
+                DrawPlayerFigure(captainAPos, ICC_BLUE, false, currentMatch->teamA->name, false);
+                DrawText(currentMatch->teamA->players[0].name, captainAPos.x - MeasureText(currentMatch->teamA->players[0].name, 10)/2, captainAPos.y + 30, 10, ICC_WHITE);
 
-                DrawPlayerFigure(captainBPos, RED, false, currentMatch->teamB->name, false);
-                DrawText(currentMatch->teamB->players[0].name, captainBPos.x - MeasureText(currentMatch->teamB->players[0].name, 10)/2, captainBPos.y + 30, 10, BLACK);
+                DrawPlayerFigure(captainBPos, ICC_RED, false, currentMatch->teamB->name, false);
+                DrawText(currentMatch->teamB->players[0].name, captainBPos.x - MeasureText(currentMatch->teamB->players[0].name, 10)/2, captainBPos.y + 30, 10, ICC_WHITE);
 
-                DrawPlayerFigure(umpirePos, BLACK, false, "Umpire", false);
+                DrawPlayerFigure(umpirePos, ICC_WHITE, false, "Umpire", false);
 // ---
-                DrawText("Call the Toss!", GetScreenWidth() / 2 - MeasureText("Call the Toss!", 30) / 2, 200, 30, DARKBLUE);
+                DrawText("Call the Toss!", GetScreenWidth() / 2 - MeasureText("Call the Toss!", 30) / 2, 200, 30, ICC_BLUE);
                 Rectangle headsBtn = { GetScreenWidth() / 2 - 210, 250, 200, 50 };
                 Rectangle tailsBtn = { GetScreenWidth() / 2 + 10, 250, 200, 50 };
-                DrawRectangleRec(headsBtn, LIGHTGRAY); DrawText("HEADS", headsBtn.x + 60, headsBtn.y + 15, 20, BLACK);
-                DrawRectangleRec(tailsBtn, LIGHTGRAY); DrawText("TAILS", tailsBtn.x + 65, tailsBtn.y + 15, 20, BLACK);
+                DrawRectangleRec(headsBtn, ICC_GRAY); DrawText("HEADS", headsBtn.x + 60, headsBtn.y + 15, 20, ICC_WHITE);
+                DrawRectangleRec(tailsBtn, ICC_GRAY); DrawText("TAILS", tailsBtn.x + 65, tailsBtn.y + 15, 20, ICC_WHITE);
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     if (CheckCollisionPointRec(GetMousePosition(), headsBtn)) toss_call = 0;
                     if (CheckCollisionPointRec(GetMousePosition(), tailsBtn)) toss_call = 1;
@@ -3413,20 +3413,20 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 static int toss_choice = -1; // 0 for bat, 1 for field
 
                 sprintf(toss_result_text, "It's %s. You %s the toss!", toss_result == 0 ? "Heads" : "Tails", user_won_toss ? "WON" : "LOST");
-                DrawText(toss_result_text, GetScreenWidth() / 2 - MeasureText(toss_result_text, 30) / 2, 120, 30, user_won_toss ? DARKGREEN : MAROON);
+                DrawText(toss_result_text, GetScreenWidth() / 2 - MeasureText(toss_result_text, 30) / 2, 120, 30, user_won_toss ? ICC_GREEN : ICC_RED);
 
                 // --- Draw the stationary coin showing the correct result ---
                 const char* coin_face = (toss_result == 0) ? "H" : "T";
-                DrawCircle(GetScreenWidth() / 2, GetScreenHeight() / 2, 100, GOLD);
-                DrawText(coin_face, GetScreenWidth() / 2 - MeasureText(coin_face, 100)/2, GetScreenHeight() / 2 - 50, 100, BLACK);
+                DrawCircle(GetScreenWidth() / 2, GetScreenHeight() / 2, 100, ICC_YELLOW);
+                DrawText(coin_face, GetScreenWidth() / 2 - MeasureText(coin_face, 100)/2, GetScreenHeight() / 2 - 50, 100, ICC_WHITE);
 
                 if (user_won_toss) {
                     if (toss_choice == -1) {
-                        DrawText("What will you do?", GetScreenWidth() / 2 - MeasureText("What will you do?", 20) / 2, 300, 20, BLACK);
+                        DrawText("What will you do?", GetScreenWidth() / 2 - MeasureText("What will you do?", 20) / 2, 300, 20, ICC_WHITE);
                         Rectangle batBtn = { GetScreenWidth() / 2 - 155, 330, 150, 50 };
                         Rectangle fieldBtn = { GetScreenWidth() / 2 + 5, 330, 150, 50 };
-                        DrawRectangleRec(batBtn, LIGHTGRAY); DrawText("BAT", batBtn.x + 55, batBtn.y + 15, 20, BLACK);
-                        DrawRectangleRec(fieldBtn, LIGHTGRAY); DrawText("FIELD", fieldBtn.x + 50, fieldBtn.y + 15, 20, BLACK);
+                        DrawRectangleRec(batBtn, ICC_GRAY); DrawText("BAT", batBtn.x + 55, batBtn.y + 15, 20, ICC_WHITE);
+                        DrawRectangleRec(fieldBtn, ICC_GRAY); DrawText("FIELD", fieldBtn.x + 50, fieldBtn.y + 15, 20, ICC_WHITE);
 
                         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                             if (CheckCollisionPointRec(GetMousePosition(), batBtn)) {
@@ -3450,12 +3450,12 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                     } else {
                         sprintf(choice_text, "Opponent chose to %s first.", toss_choice == 0 ? "BAT" : "FIELD");
                     }
-                    DrawText(choice_text, GetScreenWidth() / 2 - MeasureText(choice_text, 20) / 2, GetScreenHeight() - 100, 20, DARKBLUE);
+                    DrawText(choice_text, GetScreenWidth() / 2 - MeasureText(choice_text, 20) / 2, GetScreenHeight() - 100, 20, ICC_BLUE);
                     
                     // --- Proceed Button ---
                     Rectangle proceedButton = { GetScreenWidth() - 220, GetScreenHeight() - 60, 200, 40 };
-                    DrawRectangleRec(proceedButton, DARKGREEN);
-                    DrawTextBold("Select Playing XI", proceedButton.x + 15, proceedButton.y + 10, 20, WHITE);
+                    DrawRectangleRec(proceedButton, ICC_GREEN);
+                    DrawTextBold("Select Playing XI", proceedButton.x + 15, proceedButton.y + 10, 20, ICC_WHITE);
                     if (CheckCollisionPointRec(GetMousePosition(), proceedButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                         if (IsSoundPlaying(sounds->toss)) StopSound(sounds->toss);
                         // Transition to the player selection screen for this match
@@ -3500,7 +3500,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                  // This is not the user's match, so it should be autoplayed.
                  // For now, we'll just go to a placeholder.
                  // TODO: Implement autoplay logic for non-user matches.
-                 DrawText("AUTOPLAYING MATCH...", 100, 100, 30, DARKGRAY);
+                 DrawText("AUTOPLAYING MATCH...", 100, 100, 30, ICC_GRAY);
                  // In a real scenario, you'd simulate the match here and move to the next one.
                  // For now, we just get stuck on a placeholder.
                  break;
@@ -3508,20 +3508,20 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
 
             char title[256];
             sprintf(title, "Select Playing XI for %s", team_to_select_for->name);
-            DrawTextBold(title, GetScreenWidth() / 2 - MeasureText(title, 40) / 2, 20, 40, DARKGRAY);
+            DrawTextBold(title, GetScreenWidth() / 2 - MeasureText(title, 40) / 2, 20, 40, ICC_GRAY);
 
             int selected_count = 0;
             Rectangle defaultXIButton = { GetScreenWidth() - 230, 75, 200, 30 };
             DrawRectangleRec(defaultXIButton, VIOLET);
-            DrawTextBold("Select Default XI", defaultXIButton.x + 20, defaultXIButton.y + 5, 20, WHITE);
+            DrawTextBold("Select Default XI", defaultXIButton.x + 20, defaultXIButton.y + 5, 20, ICC_WHITE);
 
 
             for(int i=0; i<team_to_select_for->num_players; i++) if(player_selection_mask[i]) selected_count++;
-            DrawText(TextFormat("Selected: %d/11", selected_count), 50, 80, 20, selected_count == 11 ? DARKGREEN : BLACK);
+            DrawText(TextFormat("Selected: %d/11", selected_count), 50, 80, 20, selected_count == 11 ? ICC_GREEN : ICC_WHITE);
 
             // Player list
             Rectangle view = { 50, 110, GetScreenWidth() - 100, GetScreenHeight() - 220 };
-            DrawRectangleLinesEx(view, 1, DARKGRAY);
+            DrawRectangleLinesEx(view, 1, ICC_GRAY);
 
             const float itemHeight = 30.0f;
             if (CheckCollisionPointRec(GetMousePosition(), view)) {
@@ -3533,14 +3533,14 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             for (int i = 0; i < team_to_select_for->num_players; i++) {
                 Rectangle playerButton = { view.x + 10, view.y + 10 + (i * itemHeight) + scroll.y, view.width - 200, itemHeight - 2 };
                 bool isSelected = player_selection_mask[i];
-                DrawRectangleRec(playerButton, isSelected ? SKYBLUE : LIGHTGRAY);
+                DrawRectangleRec(playerButton, isSelected ? SKYBLUE : ICC_GRAY);
                 
                 char player_text[256];
                 sprintf(player_text, "%s", team_to_select_for->players[i].name);
                 if (i == designated_wk_idx) strcat(player_text, " (WK)");
                 if (i == team_to_select_for->captain_idx) strcat(player_text, " (C)");
                 if (i == team_to_select_for->vice_captain_idx) strcat(player_text, " (VC)");
-                DrawText(player_text, playerButton.x + 10, playerButton.y + 5, 20, BLACK);
+                DrawText(player_text, playerButton.x + 10, playerButton.y + 5, 20, ICC_WHITE);
 
                 if (CheckCollisionPointRec(GetMousePosition(), playerButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     player_selection_mask[i] = !player_selection_mask[i];
@@ -3550,8 +3550,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
 
                 if (team_to_select_for->players[i].is_wicketkeeper) {
                     Rectangle wk_button = { buttonX, playerButton.y, 40, itemHeight - 2 };
-                    DrawRectangleRec(wk_button, (i == designated_wk_idx) ? GREEN : LIGHTGRAY);
-                    DrawText("WK", wk_button.x + 10, wk_button.y + 5, 20, BLACK);
+                    DrawRectangleRec(wk_button, (i == designated_wk_idx) ? ICC_GREEN : ICC_GRAY);
+                    DrawText("WK", wk_button.x + 10, wk_button.y + 5, 20, ICC_WHITE);
                     if (CheckCollisionPointRec(GetMousePosition(), wk_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                         designated_wk_idx = i;
                     }
@@ -3561,10 +3561,10 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 Rectangle c_button = { buttonX, playerButton.y, 40, itemHeight - 2 };
                 Rectangle vc_button = { c_button.x + c_button.width + 5, playerButton.y, 40, itemHeight - 2 };
 
-                DrawRectangleRec(c_button, (i == team_to_select_for->captain_idx) ? GOLD : LIGHTGRAY);
-                DrawText("C", c_button.x + 15, c_button.y + 5, 20, BLACK);
-                DrawRectangleRec(vc_button, (i == team_to_select_for->vice_captain_idx) ? SILVER : LIGHTGRAY);
-                DrawText("VC", vc_button.x + 10, vc_button.y + 5, 20, BLACK);
+                DrawRectangleRec(c_button, (i == team_to_select_for->captain_idx) ? ICC_YELLOW : ICC_GRAY);
+                DrawText("C", c_button.x + 15, c_button.y + 5, 20, ICC_WHITE);
+                DrawRectangleRec(vc_button, (i == team_to_select_for->vice_captain_idx) ? SILVER : ICC_GRAY);
+                DrawText("VC", vc_button.x + 10, vc_button.y + 5, 20, ICC_WHITE);
 
                 if (CheckCollisionPointRec(GetMousePosition(), c_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     if (i != team_to_select_for->vice_captain_idx) {
@@ -3617,8 +3617,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             // "Start Match" button
             const char* nextButtonText = (squad_selection_turn == 0) ? "Select Opponent XI" : "Start Match";
             Rectangle nextButton = { GetScreenWidth() - 240, GetScreenHeight() - 60, 220, 40 };
-            DrawRectangleRec(nextButton, DARKGREEN);
-            DrawTextBold(nextButtonText, nextButton.x + 20, nextButton.y + 10, 20, WHITE);
+            DrawRectangleRec(nextButton, ICC_GREEN);
+            DrawTextBold(nextButtonText, nextButton.x + 20, nextButton.y + 10, 20, ICC_WHITE);
             if (CheckCollisionPointRec(GetMousePosition(), nextButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 // Validation
                 int bowlers = 0;
@@ -3707,7 +3707,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 }
             }
             if (validation_error[0] != '\0') {
-                DrawText(validation_error, nextButton.x - MeasureText(validation_error, 20) - 20, nextButton.y + 10, 20, RED);
+                DrawText(validation_error, nextButton.x - MeasureText(validation_error, 20) - 20, nextButton.y + 10, 20, ICC_RED);
             }
             break;
         }
@@ -3727,27 +3727,27 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 data_loaded = true;
             }
 
-            DrawTextBold("Select Ground and Umpires", GetScreenWidth() / 2 - MeasureText("Select Ground and Umpires", 40) / 2, 20, 40, DARKGRAY);
+            DrawTextBold("Select Ground and Umpires", GetScreenWidth() / 2 - MeasureText("Select Ground and Umpires", 40) / 2, 20, 40, ICC_GRAY);
 
             // Ground Selection
-            DrawText("Select Ground", 50, 100, 20, DARKGRAY);
+            DrawText("Select Ground", 50, 100, 20, ICC_GRAY);
             for (int i = 0; i < num_grounds; i++) {
                 Rectangle groundButton = { 50, 130 + i * 30, 300, 25 };
                 bool isSelected = (i == ground_idx);
-                DrawRectangleRec(groundButton, isSelected ? DARKBLUE : LIGHTGRAY);
-                DrawText(grounds[i].name, groundButton.x + 10, groundButton.y + 5, 20, isSelected ? WHITE : BLACK);
+                DrawRectangleRec(groundButton, isSelected ? ICC_BLUE : ICC_GRAY);
+                DrawText(grounds[i].name, groundButton.x + 10, groundButton.y + 5, 20, isSelected ? ICC_WHITE : ICC_WHITE);
                 if (CheckCollisionPointRec(GetMousePosition(), groundButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     ground_idx = i;
                 }
             }
 
             // Umpire Selection
-            DrawText("Select Two Umpires", 400, 100, 20, DARKGRAY);
+            DrawText("Select Two Umpires", 400, 100, 20, ICC_GRAY);
             for (int i = 0; i < num_umpires; i++) {
                 Rectangle umpireButton = { 400, 130 + i * 30, 300, 25 };
                 bool isSelected = (i == umpire1_idx || i == umpire2_idx);
-                DrawRectangleRec(umpireButton, isSelected ? DARKBLUE : LIGHTGRAY);
-                DrawText(umpires[i].name, umpireButton.x + 10, umpireButton.y + 5, 20, isSelected ? WHITE : BLACK);
+                DrawRectangleRec(umpireButton, isSelected ? ICC_BLUE : ICC_GRAY);
+                DrawText(umpires[i].name, umpireButton.x + 10, umpireButton.y + 5, 20, isSelected ? ICC_WHITE : ICC_WHITE);
                 if (CheckCollisionPointRec(GetMousePosition(), umpireButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     if (umpire1_idx == -1) {
                         umpire1_idx = i;
@@ -3761,8 +3761,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             }
 
             Rectangle startButton = { GetScreenWidth() - 220, GetScreenHeight() - 60, 200, 40 };
-            DrawRectangleRec(startButton, DARKGREEN);
-            DrawTextBold("Start Match", startButton.x + 40, startButton.y + 10, 20, WHITE);
+            DrawRectangleRec(startButton, ICC_GREEN);
+            DrawTextBold("Start Match", startButton.x + 40, startButton.y + 10, 20, ICC_WHITE);
 
             if (CheckCollisionPointRec(GetMousePosition(), startButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 if (ground_idx != -1 && umpire1_idx != -1 && umpire2_idx != -1) {
@@ -3778,8 +3778,8 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
     }
 
     // Draw Back Button on all steps
-    DrawRectangleRec(backButton, MAROON);
-    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, WHITE);
+    DrawRectangleRec(backButton, ICC_RED);
+    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, ICC_WHITE);
 
     EndDrawing();
 }
@@ -3864,37 +3864,37 @@ static void UpdateDrawManageUsersScreen(GuiState *state) {
 
     // --- Drawing ---
     BeginDrawing();
-    ClearBackground(RAYWHITE);
-    DrawTextBold("Manage Users & Admins", GetScreenWidth()/2 - MeasureText("Manage Users & Admins", 40)/2, 10, 40, DARKGRAY);
+    ClearBackground(ICC_BG);
+    DrawTextBold("Manage Users & Admins", GetScreenWidth()/2 - MeasureText("Manage Users & Admins", 40)/2, 10, 40, ICC_GRAY);
 
     // --- Draw Input Form ---
-    DrawTextBold("Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(nameBox.bounds, LIGHTGRAY); DrawText(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, BLACK);
+    DrawTextBold("Name", nameBox.bounds.x, nameBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(nameBox.bounds, ICC_GRAY); DrawText(nameBox.text, nameBox.bounds.x + 5, nameBox.bounds.y + 8, 20, ICC_WHITE);
 
-    DrawTextBold("Email", emailBox.bounds.x, emailBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(emailBox.bounds, LIGHTGRAY);
+    DrawTextBold("Email", emailBox.bounds.x, emailBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(emailBox.bounds, ICC_GRAY);
     if (editIndex != -1) DrawRectangleRec(emailBox.bounds, (Color){220,220,220,255}); // Gray out email on edit
-    DrawText(emailBox.text, emailBox.bounds.x + 5, emailBox.bounds.y + 8, 20, BLACK);
+    DrawText(emailBox.text, emailBox.bounds.x + 5, emailBox.bounds.y + 8, 20, ICC_WHITE);
 
-    DrawTextBold(editIndex == -1 ? "Password" : "New Password (optional)", passwordBox.bounds.x, passwordBox.bounds.y - 20, 10, GRAY);
-    DrawRectangleRec(passwordBox.bounds, LIGHTGRAY);
+    DrawTextBold(editIndex == -1 ? "Password" : "New Password (optional)", passwordBox.bounds.x, passwordBox.bounds.y - 20, 10, ICC_GRAY);
+    DrawRectangleRec(passwordBox.bounds, ICC_GRAY);
     char pass_display[128] = {0}; for(int i=0; i<passwordBox.charCount; ++i) strcat(pass_display, "*");
-    DrawText(pass_display, passwordBox.bounds.x + 5, passwordBox.bounds.y + 8, 20, BLACK);
+    DrawText(pass_display, passwordBox.bounds.x + 5, passwordBox.bounds.y + 8, 20, ICC_WHITE);
 
     Rectangle adminCheck = { 700, 100, 25, 25 };
-    DrawRectangleRec(adminCheck, LIGHTGRAY);
-    if (isAdminFlag) DrawRectangle(adminCheck.x + 5, adminCheck.y + 5, 15, 15, DARKBLUE);
-    DrawTextBold("Is Admin?", adminCheck.x + 35, adminCheck.y + 5, 20, BLACK);
+    DrawRectangleRec(adminCheck, ICC_GRAY);
+    if (isAdminFlag) DrawRectangle(adminCheck.x + 5, adminCheck.y + 5, 15, 15, ICC_BLUE);
+    DrawTextBold("Is Admin?", adminCheck.x + 35, adminCheck.y + 5, 20, ICC_WHITE);
     if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){adminCheck.x, adminCheck.y, 150, 25}) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isAdminFlag = !isAdminFlag;
 
     const char* buttonText = (editIndex == -1) ? "Add User" : "Save Changes";
-    DrawRectangleRec(addButton, (editIndex == -1) ? DARKGREEN : BLUE);
-    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, WHITE);
+    DrawRectangleRec(addButton, (editIndex == -1) ? ICC_GREEN : ICC_BLUE);
+    DrawTextBold(buttonText, addButton.x + addButton.width/2 - MeasureText(buttonText, 20)/2, addButton.y + 5, 20, ICC_WHITE);
 
     // --- Draw User List ---
     Rectangle view = { 20, 150, GetScreenWidth() - 40, GetScreenHeight() - 210 };
     DrawRectangleRec(view, (Color){230, 230, 230, 255});
-    DrawRectangleLinesEx(view, 1, DARKGRAY);
+    DrawRectangleLinesEx(view, 1, ICC_GRAY);
 
     // Handle scrolling
     const float itemHeight = 30.0f;
@@ -3909,31 +3909,31 @@ static void UpdateDrawManageUsersScreen(GuiState *state) {
     BeginScissorMode(view.x, view.y, view.width, view.height);
     
     // List Header
-    DrawTextBold("Name", view.x + 20, view.y + 10, 20, DARKGRAY);
-    DrawTextBold("Email", view.x + 300, view.y + 10, 20, DARKGRAY);
-    DrawTextBold("Role", view.x + 650, view.y + 10, 20, DARKGRAY);
-    DrawTextBold("Actions", view.x + 800, view.y + 10, 20, DARKGRAY);
+    DrawTextBold("Name", view.x + 20, view.y + 10, 20, ICC_GRAY);
+    DrawTextBold("Email", view.x + 300, view.y + 10, 20, ICC_GRAY);
+    DrawTextBold("Role", view.x + 650, view.y + 10, 20, ICC_GRAY);
+    DrawTextBold("Actions", view.x + 800, view.y + 10, 20, ICC_GRAY);
 
     for (int i = 0; i < num_accounts; i++) {
         float y_pos = view.y + 40 + (i * itemHeight) + scroll.y;
         if (y_pos < view.y - itemHeight || y_pos > view.y + view.height) continue; // Culling
 
-        Color textColor = (editIndex == i) ? BLUE : BLACK;
+        Color textColor = (editIndex == i) ? ICC_BLUE : ICC_WHITE;
         DrawText(accounts[i].name, view.x + 20, y_pos, 20, textColor);
         DrawText(accounts[i].email, view.x + 300, y_pos, 20, textColor);
 
         const char* role = "User";
         if (is_superadmin(accounts[i].email)) role = "Superadmin";
         else if (accounts[i].isAdmin) role = "Admin";
-        DrawText(role, view.x + 650, y_pos, 20, (strcmp(role,"User")==0) ? GRAY : DARKBLUE);
+        DrawText(role, view.x + 650, y_pos, 20, (strcmp(role,"User")==0) ? ICC_GRAY : ICC_BLUE);
 
         // Action buttons
         if (!is_superadmin(accounts[i].email)) {
             Rectangle editBtn = { view.x + 800, y_pos, 60, 25 };
             Rectangle deleteBtn = { view.x + 870, y_pos, 70, 25 };
 
-            DrawRectangleRec(editBtn, ORANGE); DrawText("Edit", editBtn.x + 15, editBtn.y + 5, 15, BLACK);
-            DrawRectangleRec(deleteBtn, RED); DrawText("Delete", deleteBtn.x + 10, deleteBtn.y + 5, 15, WHITE);
+            DrawRectangleRec(editBtn, ICC_YELLOW); DrawText("Edit", editBtn.x + 15, editBtn.y + 5, 15, ICC_WHITE);
+            DrawRectangleRec(deleteBtn, ICC_RED); DrawText("Delete", deleteBtn.x + 10, deleteBtn.y + 5, 15, ICC_WHITE);
 
             if (CheckCollisionPointRec(GetMousePosition(), editBtn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 editIndex = i;
@@ -3958,8 +3958,8 @@ static void UpdateDrawManageUsersScreen(GuiState *state) {
     EndScissorMode();
 
     // Back button
-    DrawRectangleRec(backButton, LIGHTGRAY);
-    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, BLACK);
+    DrawRectangleRec(backButton, ICC_GRAY);
+    DrawTextBold("Back", backButton.x + backButton.width/2 - MeasureText("Back", 20)/2, backButton.y + 10, 20, ICC_WHITE);
 
     EndDrawing();
 }
@@ -3988,7 +3988,7 @@ static void HandleTextBox(TextBox *box) {
         
         // Add a blinking cursor effect
         if ((((int)(GetTime()*2.0f)) % 2) == 0) {
-            DrawText("|", box->bounds.x + 8 + MeasureText(box->text, 20), box->bounds.y + 12, 20, BLACK);
+            DrawText("|", box->bounds.x + 8 + MeasureText(box->text, 20), box->bounds.y + 12, 20, ICC_WHITE);
         }
     }
 }
