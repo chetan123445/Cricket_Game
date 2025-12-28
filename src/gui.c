@@ -3461,23 +3461,15 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
             DrawRectangleLinesEx(view, 1, ICC_GRAY);
 
             const float itemHeight = 30.0f;
-            if (CheckCollisionPointRec(GetMousePosition(), view)) {
-                scroll.y += GetMouseWheelMove() * itemHeight;
-                if (scroll.y > 0) scroll.y = 0;
-            }
-
-            BeginScissorMode(view.x, view.y, view.width, view.height);
-
+            
             // --- Dynamic Column Width Calculation ---
-            const char* fixture_headers[] = { "#", "Team A", "vs", "Team B", "Date", "Time" };
-            float col_widths[6] = {0}; // Initialize with 0
+            const char* fixture_headers[] = { "#", "Team A", "Team B", "Date", "Time" };
+            float col_widths[5] = {0}; // Initialize with 0
 
             // Determine max width for each column from headers
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 5; i++) {
                 col_widths[i] = MeasureText(fixture_headers[i], 18);
             }
-            // Add static width for "vs"
-            col_widths[2] = MeasureText("vs", 18);
 
             // Determine max width from match data
             for (int i = 0; i < num_wc_matches; i++) {
@@ -3493,7 +3485,7 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
 
                 // Team B
                 width = MeasureText(wc_matches[i].teamB->name, 18);
-                if (width > col_widths[3]) col_widths[3] = width;
+                if (width > col_widths[2]) col_widths[2] = width;
 
                 // Date
                 time_t match_date_t = tournament_start_date + (i * 24 * 60 * 60);
@@ -3501,35 +3493,52 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 char date_str[32];
                 strftime(date_str, sizeof(date_str), "%a, %b %d", match_tm);
                 width = MeasureText(date_str, 18);
-                if (width > col_widths[4]) col_widths[4] = width;
+                if (width > col_widths[3]) col_widths[3] = width;
 
                 // Time (fixed for now)
                 width = MeasureText("10:00 AM", 18);
-                if (width > col_widths[5]) col_widths[5] = width;
+                if (width > col_widths[4]) col_widths[4] = width;
             }
-
-            // Calculate total required width and available padding
-            float total_content_width = 0;
-            for (int i = 0; i < 6; i++) {
-                total_content_width += col_widths[i];
+            const int col_padding = 25;
+            float contentWidth = 20; // Initial left padding
+            for (int i = 0; i < 5; i++) {
+                contentWidth += col_widths[i] + col_padding;
             }
+            float contentHeight = 40 + (num_wc_matches * itemHeight);
+            bool horizScrollbarRequired = contentWidth > view.width;
+            bool vertScrollbarRequired = contentHeight > view.height;
 
-            const float min_padding = 20; // Minimum padding between columns
-            float dynamic_padding = (view.width - total_content_width) / (6 - 1);
+            Rectangle scissorView = view;
+            if (horizScrollbarRequired) scissorView.height -= 12;
+            if (vertScrollbarRequired) scissorView.width -= 12;
 
-            if (dynamic_padding < min_padding) dynamic_padding = min_padding; // Ensure minimum padding
+            if (scroll.y > 0) scroll.y = 0;
+            if (vertScrollbarRequired && scroll.y < scissorView.height - contentHeight) scroll.y = scissorView.height - contentHeight;
+            if (!vertScrollbarRequired) scroll.y = 0;
+
+            if (scroll.x > 0) scroll.x = 0;
+            if (horizScrollbarRequired && scroll.x < scissorView.width - contentWidth) scroll.x = scissorView.width - contentWidth;
+            if (!horizScrollbarRequired) scroll.x = 0;
+
+            if (CheckCollisionPointRec(GetMousePosition(), scissorView)) {
+                scroll.y += GetMouseWheelMove() * 25.0f;
+                if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                    scroll.x += GetMouseWheelMove() * 25.0f;
+                }
+            }
+            
+            BeginScissorMode(scissorView.x, scissorView.y, scissorView.width, scissorView.height);
 
             // Calculate column x positions
-            float col_x[6];
-            float current_x = view.x + 10; // Small left margin
-            for (int i = 0; i < 6; i++) {
-                col_x[i] = current_x;
-                current_x += col_widths[i] + dynamic_padding;
+            float col_x[5];
+            col_x[0] = scissorView.x + 10 + scroll.x;
+            for (int i = 1; i < 5; i++) {
+                col_x[i] = col_x[i-1] + col_widths[i-1] + col_padding;
             }
 
             // Draw Headers
             int y_header = view.y + 10 + scroll.y;
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 5; i++) {
                 DrawText(fixture_headers[i], col_x[i], y_header, 18, ICC_YELLOW);
             }
             DrawLine(view.x + 10, y_header + 24, view.x + view.width - 10, y_header + 24, ICC_YELLOW);
@@ -3545,23 +3554,60 @@ static void UpdateDrawWcSetupScreen(GuiState *state, GameState *gameState, GameS
                 // Team A
                 DrawText(wc_matches[i].teamA->name, col_x[1], y_pos, 18, ICC_WHITE);
 
-                // vs
-                DrawText("vs", col_x[2], y_pos, 18, ICC_BLUE);
-
                 // Team B
-                DrawText(wc_matches[i].teamB->name, col_x[3], y_pos, 18, ICC_WHITE);
+                DrawText(wc_matches[i].teamB->name, col_x[2], y_pos, 18, ICC_WHITE);
 
                 // Date
                 time_t match_date_t = tournament_start_date + (i * 24 * 60 * 60);
                 struct tm *match_tm = localtime(&match_date_t);
                 char date_str[32];
                 strftime(date_str, sizeof(date_str), "%a, %b %d", match_tm);
-                DrawText(date_str, col_x[4], y_pos, 18, ICC_WHITE);
+                DrawText(date_str, col_x[3], y_pos, 18, ICC_WHITE);
 
                 // Time
-                DrawText("10:00 AM", col_x[5], y_pos, 18, ICC_WHITE);
+                DrawText("10:00 AM", col_x[4], y_pos, 18, ICC_WHITE);
             }
             EndScissorMode();
+            if (vertScrollbarRequired) {
+                Rectangle scrollBarArea = { scissorView.x + scissorView.width, scissorView.y, 10, scissorView.height };
+                DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+                
+                float handleHeight = (scissorView.height / contentHeight) * scissorView.height;
+                if (handleHeight < 20) handleHeight = 20; // Minimum handle size
+                float handleY = scissorView.y + (-scroll.y / (contentHeight - scissorView.height)) * (scissorView.height - handleHeight);
+                Rectangle scrollHandle = { scrollBarArea.x, handleY, 10, handleHeight };
+                DrawRectangleRec(scrollHandle, GRAY);
+
+                static bool isDragging = false;
+                if (CheckCollisionPointRec(GetMousePosition(), scrollHandle) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isDragging = true;
+                if (isDragging) {
+                    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) isDragging = false;
+                    else {
+                        // Relative mouse movement
+                        scroll.y -= GetMouseDelta().y * (contentHeight / scissorView.height);
+                    }
+                }
+            }
+            if (horizScrollbarRequired) {
+                Rectangle scrollBarArea = { scissorView.x, scissorView.y + scissorView.height, scissorView.width, 10 };
+                DrawRectangleRec(scrollBarArea, LIGHTGRAY);
+                
+                float handleWidth = (scissorView.width / contentWidth) * scissorView.width;
+                if (handleWidth < 20) handleWidth = 20; // Minimum handle size
+                float handleX = scissorView.x + (-scroll.x / (contentWidth - scissorView.width)) * (scissorView.width - handleWidth);
+                Rectangle scrollHandle = { handleX, scrollBarArea.y, handleWidth, 10 };
+                DrawRectangleRec(scrollHandle, GRAY);
+
+                static bool isDragging = false;
+                if (CheckCollisionPointRec(GetMousePosition(), scrollHandle) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) isDragging = true;
+                if (isDragging) {
+                    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) isDragging = false;
+                    else {
+                        // Relative mouse movement
+                        scroll.x -= GetMouseDelta().x * (contentWidth / scissorView.width);
+                    }
+                }
+            }
 
             Rectangle startButton = { GetScreenWidth() - 220, GetScreenHeight() - 60, 200, 40 };
             DrawRectangleRec(startButton, ICC_GREEN);
